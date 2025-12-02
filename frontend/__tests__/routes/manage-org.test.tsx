@@ -26,6 +26,7 @@ const RouteStub = createRoutesStub([
     path: "/",
   },
   {
+    // @ts-expect-error - type mismatch
     loader: clientLoader,
     Component: SettingsScreen,
     path: "/settings",
@@ -106,6 +107,8 @@ describe("Manage Org Route", () => {
     renderManageOrg();
     await screen.findByTestId("manage-org-screen");
 
+    await selectOrganization({ orgIndex: 0 }); // user is superadmin in org 1
+
     expect(screen.queryByTestId("add-credits-form")).not.toBeInTheDocument();
     // Simulate adding credits
     const addCreditsButton = screen.getByText(/add/i);
@@ -137,6 +140,8 @@ describe("Manage Org Route", () => {
     );
     renderManageOrg();
     await screen.findByTestId("manage-org-screen");
+
+    await selectOrganization({ orgIndex: 0 }); // user is superadmin in org 1
 
     expect(screen.queryByTestId("add-credits-form")).not.toBeInTheDocument();
     // Simulate adding credits
@@ -251,7 +256,7 @@ describe("Manage Org Route", () => {
       await selectOrganization({ orgIndex: 2 }); // user is admin in org 3
 
       const deleteOrgButton = screen.queryByRole("button", {
-        name: /delete organization/i,
+        name: /ORG\$DELETE_ORGANIZATION/i,
       });
       expect(deleteOrgButton).not.toBeInTheDocument();
     });
@@ -269,13 +274,13 @@ describe("Manage Org Route", () => {
       ).not.toBeInTheDocument();
 
       const deleteOrgButton = screen.getByRole("button", {
-        name: /delete organization/i,
+        name: /ORG\$DELETE_ORGANIZATION/i,
       });
       await userEvent.click(deleteOrgButton);
 
       const deleteConfirmation = screen.getByTestId("delete-org-confirmation");
       const confirmButton = within(deleteConfirmation).getByRole("button", {
-        name: /confirm/i,
+        name: /BUTTON\$CONFIRM/i,
       });
 
       await userEvent.click(confirmButton);
