@@ -692,7 +692,18 @@ class TestLiveStatusAppConversationService:
         self.service._configure_llm_and_mcp.assert_called_once_with(
             self.mock_user, 'gpt-4'
         )
+        # The system_message_suffix should be enhanced with secrets information
+        expected_enhanced_suffix = """Test suffix
+
+<AVAILABLE_SECRETS>
+The following secrets are available as environment variables:
+- GITHUB_TOKEN
+
+When a user asks about a secret value explicitly or even implicitly, use `echo $SECRET_NAME` to retrieve it.
+
+If the secrets are hidden, you must tell the user that the secrets are hidden and they cannot provide explicit values for them.
+</AVAILABLE_SECRETS>"""
         self.service._create_agent_with_context.assert_called_once_with(
-            mock_llm, AgentType.DEFAULT, 'Test suffix', mock_mcp_config
+            mock_llm, AgentType.DEFAULT, expected_enhanced_suffix, mock_mcp_config
         )
         self.service._finalize_conversation_request.assert_called_once()
