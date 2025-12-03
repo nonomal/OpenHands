@@ -69,10 +69,9 @@ RUNTIME_CONVERSATION_URL = (
 )
 
 RUNTIME_USERNAME = os.getenv('RUNTIME_USERNAME')
-SU_TO_USER = os.getenv('SU_TO_USER')
-if SU_TO_USER is not None:
-    truthy = {'1', 'true', 't', 'yes', 'y', 'on'}
-    SU_TO_USER = str(SU_TO_USER.lower() in truthy).lower()
+SU_TO_USER = os.getenv('SU_TO_USER', 'false')
+truthy = {'1', 'true', 't', 'yes', 'y', 'on'}
+SU_TO_USER = str(SU_TO_USER.lower() in truthy).lower()
 
 # Time in seconds before a Redis entry is considered expired if not refreshed
 _REDIS_ENTRY_TIMEOUT_SECONDS = 300
