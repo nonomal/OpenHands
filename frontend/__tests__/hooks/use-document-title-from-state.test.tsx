@@ -17,7 +17,7 @@ describe("useDocumentTitleFromState", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     document.title = "Test";
-    // Default to OSS mode (OpenHands) unless overridden in specific tests
+    // Default to OpenHands unless overridden in specific tests
     mockUseAppTitle.mockReturnValue("OpenHands");
   });
 
