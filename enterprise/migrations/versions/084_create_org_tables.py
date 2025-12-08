@@ -105,6 +105,7 @@ def upgrade() -> None:
             nullable=True,
             server_default=sa.text('false'),
         ),
+        sa.Column('v1_enabled', sa.Boolean, nullable=True),
         sa.UniqueConstraint('name', name='org_name_unique'),
     )
 

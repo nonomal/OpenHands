@@ -45,6 +45,7 @@ class Org(Base):  # type: ignore
     _sandbox_api_key = Column(String, nullable=True)
     max_budget_per_task = Column(Float, nullable=True)
     enable_solvability_analysis = Column(Boolean, nullable=True, default=False)
+    v1_enabled = Column(Boolean, nullable=True)
     conversation_expiration = Column(Integer, nullable=True)
 
     # Relationships
