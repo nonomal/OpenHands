@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor, cleanup } from "@testing-library/react";
 import {
   describe,
   it,
@@ -27,7 +27,15 @@ describe.sequential("useWebSocket", () => {
   );
 
   beforeAll(() => mswServer.listen());
-  afterEach(() => mswServer.resetHandlers());
+  afterEach(() => {
+    // Clean up React components to close WebSocket connections
+    cleanup();
+    // Clear all tracked WebSocket clients to prevent cross-test contamination
+    wsLink.clients.forEach((client) => client.close());
+    wsLink.clients.clear();
+    // Reset MSW handlers
+    mswServer.resetHandlers();
+  });
   afterAll(() => mswServer.close());
 
   it("should establish a WebSocket connection", async () => {
