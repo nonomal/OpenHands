@@ -32,7 +32,7 @@ class SaasSettingsStore(OssSettingsStore):
     config: OpenHandsConfig
     ENCRYPT_VALUES = ['llm_api_key', 'llm_api_key_for_byor', 'search_api_key']
 
-    def get_user_settings_by_keycloak_id(
+    def _get_user_settings_by_keycloak_id(
         self, keycloak_user_id: str, session=None
     ) -> UserSettings | None:
         """
@@ -133,7 +133,7 @@ class SaasSettingsStore(OssSettingsStore):
                 # Check if we need to migrate from user_settings
                 user_settings = None
                 with session_maker() as session:
-                    user_settings = self.get_user_settings_by_keycloak_id(
+                    user_settings = self._get_user_settings_by_keycloak_id(
                         self.user_id, session
                     )
                 if user_settings:
