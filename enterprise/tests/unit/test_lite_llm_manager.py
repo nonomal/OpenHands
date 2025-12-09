@@ -7,14 +7,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from openhands.server.settings import Settings
 from pydantic import SecretStr
-
 from server.constants import (
     get_default_litellm_model,
 )
 from storage.lite_llm_manager import LiteLlmManager
 from storage.user_settings import UserSettings
+
+from openhands.server.settings import Settings
 
 
 class TestLiteLlmManager:
