@@ -23,7 +23,6 @@ from server.constants import IS_FEATURE_ENV
 from server.routes.event_webhook import _get_session_api_key, _get_user_id
 from storage.database import session_maker
 from storage.user import User
-from storage.user_settings import UserSettings
 from storage.user_store import UserStore
 
 from openhands.core.logger import openhands_logger as logger
@@ -361,24 +360,6 @@ async def accept_tos(request: Request):
     # Update user settings with TOS acceptance
     accepted_tos: datetime = datetime.now(timezone.utc)
     with session_maker() as session:
-        user_settings = (
-            session.query(UserSettings)
-            .filter(UserSettings.keycloak_user_id == user_id)
-            .first()
-        )
-
-        if user_settings:
-            user_settings.accepted_tos = accepted_tos
-            session.merge(user_settings)
-        else:
-            # Create user settings if they don't exist
-            user_settings = UserSettings(
-                keycloak_user_id=user_id,
-                accepted_tos=accepted_tos,
-                user_version=0,  # This will trigger a migration to the latest version on next load
-            )
-            session.add(user_settings)
-
         user = session.query(User).filter(User.id == uuid.UUID(user_id)).first()
         if not user:
             session.rollback()

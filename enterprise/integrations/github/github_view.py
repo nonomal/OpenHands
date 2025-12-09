@@ -26,7 +26,6 @@ from storage.database import session_maker
 from storage.org_store import OrgStore
 from storage.proactive_conversation_store import ProactiveConversationStore
 from storage.saas_secrets_store import SaasSecretsStore
-from storage.saas_settings_store import SaasSettingsStore
 
 from openhands.agent_server.models import SendMessageRequest
 from openhands.app_server.app_conversation.app_conversation_models import (
@@ -95,19 +94,14 @@ async def get_user_v1_enabled_setting(user_id: str) -> bool:
     Returns:
         True if V1 conversations are enabled for this user, False otherwise
     """
-    config = get_config()
-    settings_store = SaasSettingsStore(
-        user_id=user_id, session_maker=session_maker, config=config
+    org = await call_sync_from_async(
+        OrgStore.get_current_org_from_keycloak_user_id, user_id
     )
 
-    settings = await call_sync_from_async(
-        settings_store.get_user_settings_by_keycloak_id, user_id
-    )
-
-    if not settings or settings.v1_enabled is None:
+    if not org or org.v1_enabled is None:
         return False
 
-    return settings.v1_enabled
+    return org.v1_enabled
 
 
 # =================================================

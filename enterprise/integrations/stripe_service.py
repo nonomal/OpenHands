@@ -9,6 +9,8 @@ from storage.org import Org
 from storage.org_store import OrgStore
 from storage.stripe_customer import StripeCustomer
 
+from openhands.utils.async_utils import call_sync_from_async
+
 stripe.api_key = STRIPE_API_KEY
 
 
@@ -38,7 +40,9 @@ async def find_customer_id_by_org_id(org_id: UUID) -> str | None:
 
 async def find_customer_id_by_user_id(user_id: str) -> str | None:
     # First search our own DB...
-    org = OrgStore.get_current_org_from_keycloak_user_id(user_id)
+    org = await call_sync_from_async(
+        OrgStore.get_current_org_from_keycloak_user_id, user_id
+    )
     if not org:
         logger.warning(f'Org not found for user {user_id}')
         return None
@@ -48,7 +52,9 @@ async def find_customer_id_by_user_id(user_id: str) -> str | None:
 
 async def find_or_create_customer_by_user_id(user_id: str) -> dict | None:
     # Get the current org for the user
-    org = OrgStore.get_current_org_from_keycloak_user_id(user_id)
+    org = await call_sync_from_async(
+        OrgStore.get_current_org_from_keycloak_user_id, user_id
+    )
     if not org:
         logger.warning(f'Org not found for user {user_id}')
         return None
