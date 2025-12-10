@@ -8,8 +8,13 @@ from openhands.storage.data_models.conversation_metadata import ConversationMeta
 
 # Mock the database module before importing
 with patch('storage.database.engine'), patch('storage.database.a_engine'):
-    from storage.saas_conversation_store import SaasConversationStore
-    from storage.user import User
+    # Import the actual StoredConversationMetadata from OpenHands core
+    from openhands.app_server.app_conversation.sql_app_conversation_info_service import StoredConversationMetadata
+    
+    # Mock the lazy import to return the actual class
+    with patch('storage.stored_conversation_metadata.StoredConversationMetadata', StoredConversationMetadata):
+        from storage.saas_conversation_store import SaasConversationStore
+        from storage.user import User
 
 
 @pytest.fixture(autouse=True)
@@ -31,7 +36,7 @@ def mock_user_store():
     mock_user = MagicMock(spec=User)
     mock_user.current_org_id = UUID('5594c7b6-f959-4b81-92e9-b09c206f5081')
 
-    with patch('storage.user_store.UserStore.get_user_by_id', return_value=mock_user):
+    with patch('storage.saas_conversation_store.UserStore.get_user_by_id', return_value=mock_user):
         yield
 
 

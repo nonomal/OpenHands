@@ -6,17 +6,22 @@ focusing on user isolation, SAAS metadata handling, and multi-tenant functionali
 
 from datetime import datetime, timezone
 from typing import AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-# Import the SAAS service
-from enterprise.storage.saas_app_conversation_info_injector import (
-    SaasSQLAppConversationInfoService,
-)
+# Import the actual StoredConversationMetadata from OpenHands core
+from openhands.app_server.app_conversation.sql_app_conversation_info_service import StoredConversationMetadata
+
+# Mock the lazy import to return the actual class
+with patch('storage.stored_conversation_metadata.StoredConversationMetadata', StoredConversationMetadata):
+    # Import the SAAS service
+    from enterprise.storage.saas_app_conversation_info_injector import (
+        SaasSQLAppConversationInfoService,
+    )
 from openhands.app_server.app_conversation.app_conversation_models import (
     AppConversationInfo,
 )

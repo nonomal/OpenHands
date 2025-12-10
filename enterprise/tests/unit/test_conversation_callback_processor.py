@@ -3,15 +3,21 @@ Tests for ConversationCallbackProcessor and ConversationCallback models.
 """
 
 import json
+from unittest.mock import patch
 from uuid import UUID
 
 import pytest
-from storage.conversation_callback import (
-    CallbackStatus,
-    ConversationCallback,
-    ConversationCallbackProcessor,
-)
-from storage.stored_conversation_metadata import StoredConversationMetadata
+
+# Import the actual StoredConversationMetadata from OpenHands core
+from openhands.app_server.app_conversation.sql_app_conversation_info_service import StoredConversationMetadata
+
+# Mock the lazy import to return the actual class
+with patch('storage.stored_conversation_metadata.StoredConversationMetadata', StoredConversationMetadata):
+    from storage.conversation_callback import (
+        CallbackStatus,
+        ConversationCallback,
+        ConversationCallbackProcessor,
+    )
 from storage.stored_conversation_metadata_saas import (
     StoredConversationMetadataSaas,
 )

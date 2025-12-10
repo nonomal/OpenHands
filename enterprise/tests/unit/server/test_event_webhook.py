@@ -6,22 +6,27 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import BackgroundTasks, HTTPException, Request, status
-from server.routes.event_webhook import (
-    BatchMethod,
-    BatchOperation,
-    _get_session_api_key,
-    _get_user_id,
-    _parse_conversation_id_and_subpath,
-    _process_batch_operations_background,
-    on_batch_write,
-    on_delete,
-    on_write,
-)
-from server.utils.conversation_callback_utils import (
-    process_event,
-    update_conversation_metadata,
-)
-from storage.stored_conversation_metadata import StoredConversationMetadata
+
+# Import the actual StoredConversationMetadata from OpenHands core
+from openhands.app_server.app_conversation.sql_app_conversation_info_service import StoredConversationMetadata
+
+# Mock the lazy import to return the actual class
+with patch('storage.stored_conversation_metadata.StoredConversationMetadata', StoredConversationMetadata):
+    from server.routes.event_webhook import (
+        BatchMethod,
+        BatchOperation,
+        _get_session_api_key,
+        _get_user_id,
+        _parse_conversation_id_and_subpath,
+        _process_batch_operations_background,
+        on_batch_write,
+        on_delete,
+        on_write,
+    )
+    from server.utils.conversation_callback_utils import (
+        process_event,
+        update_conversation_metadata,
+    )
 
 from openhands.events.observation.agent import AgentStateChangedObservation
 
