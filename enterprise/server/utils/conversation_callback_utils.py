@@ -11,7 +11,6 @@ from storage.conversation_callback import (
 )
 from storage.conversation_work import ConversationWork
 from storage.database import session_maker
-from storage.stored_conversation_metadata import StoredConversationMetadata
 
 from openhands.core.config import load_openhands_config
 from openhands.core.schema.agent import AgentState
@@ -126,6 +125,12 @@ def update_conversation_metadata(conversation_id: str, content: dict):
         conversation_id: The conversation ID to update
         content: The metadata content to update
     """
+
+    # Local import fixes the lazy-loading problem
+    from openhands.app_server.app_conversation.sql_app_conversation_info_service import (
+        StoredConversationMetadata,
+    )
+
     logger.debug(
         'update_conversation_metadata',
         extra={
