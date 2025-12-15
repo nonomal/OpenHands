@@ -23,6 +23,9 @@ from storage.user_settings import UserSettings
 from openhands.server.settings import Settings
 from openhands.utils.async_utils import call_sync_from_async
 
+# A very large number to represent "unlimited" until LiteLLM fixes their unlimited update bug.
+UNLIMITED_BUDGET_SETTING = 1000000000.0
+
 
 class LiteLlmManager:
     """Manage LiteLLM interactions."""
@@ -118,7 +121,7 @@ class LiteLlmManager:
                 )
 
                 await LiteLlmManager._update_user(
-                    client, keycloak_user_id, max_budget=1000000000.0
+                    client, keycloak_user_id, max_budget=UNLIMITED_BUDGET_SETTING
                 )
 
                 await LiteLlmManager._add_user_to_team(
@@ -164,6 +167,7 @@ class LiteLlmManager:
             team_info = await LiteLlmManager._get_team(client, team_id)
             if not team_info:
                 return None
+            # TODO: change to use bulk update endpoint
             for membership in team_info.get('team_memberships', []):
                 user_id = membership.get('user_id')
                 if not user_id:
