@@ -19,6 +19,7 @@ export default [
       route("secrets", "routes/secrets-settings.tsx"),
       route("api-keys", "routes/api-keys.tsx"),
     ]),
+    route("conversations", "routes/conversations.tsx"),
     route("conversations/:conversationId", "routes/conversation.tsx"),
     route("microagent-management", "routes/microagent-management.tsx"),
     route("oauth/device/verify", "routes/device-verify.tsx"),
