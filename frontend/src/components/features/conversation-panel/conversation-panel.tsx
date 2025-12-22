@@ -66,7 +66,7 @@ export function ConversationPanel({ onClose }: ConversationPanelProps) {
   const { mutate: updateConversation } = useUpdateConversation();
 
   // Set up infinite scroll
-  const { ref: setScrollContainerRef } = useInfiniteScroll({
+  const { setRef: setScrollContainerRef } = useInfiniteScroll({
     hasNextPage: !!hasNextPage,
     isFetchingNextPage,
     fetchNextPage,

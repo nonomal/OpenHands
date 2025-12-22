@@ -15,7 +15,7 @@ function InfiniteScrollTestComponent({
   fetchNextPage,
   threshold = 100,
 }: InfiniteScrollTestComponentProps) {
-  const { ref } = useInfiniteScroll({
+  const { setRef } = useInfiniteScroll({
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
@@ -25,7 +25,7 @@ function InfiniteScrollTestComponent({
   return (
     <div
       data-testid="scroll-container"
-      ref={ref}
+      ref={setRef}
       style={{ height: "200px", overflow: "auto" }}
     >
       <div style={{ height: "1000px" }}>Scrollable content</div>

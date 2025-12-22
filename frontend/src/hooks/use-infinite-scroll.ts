@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useCallback, useState } from "react";
 
 interface UseInfiniteScrollOptions {
   hasNextPage: boolean;
@@ -13,14 +13,7 @@ export const useInfiniteScroll = ({
   fetchNextPage,
   threshold = 100,
 }: UseInfiniteScrollOptions) => {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
-
-  // Use a callback ref to track when the container is mounted
-  const setContainerRef = useCallback((node: HTMLDivElement | null) => {
-    containerRef.current = node;
-    setContainer(node);
-  }, []);
 
   const handleScroll = useCallback(() => {
     if (!container || isFetchingNextPage || !hasNextPage) {
@@ -44,5 +37,5 @@ export const useInfiniteScroll = ({
     };
   }, [container, handleScroll]);
 
-  return { ref: setContainerRef, containerRef };
+  return { setRef: setContainer };
 };

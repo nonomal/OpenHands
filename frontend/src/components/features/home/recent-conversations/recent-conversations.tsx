@@ -21,7 +21,7 @@ export function RecentConversations() {
   } = usePaginatedConversations(10);
 
   // Set up infinite scroll
-  const { ref: setScrollContainerRef } = useInfiniteScroll({
+  const { setRef: setScrollContainerRef } = useInfiniteScroll({
     hasNextPage: !!hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
