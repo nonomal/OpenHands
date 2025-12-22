@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import ReCAPTCHA from "react-google-recaptcha";
 import { I18nKey } from "#/i18n/declaration";
 import OpenHandsLogo from "#/assets/branding/openhands-logo.svg?react";
 import { ModalBackdrop } from "#/components/shared/modals/modal-backdrop";
@@ -13,7 +14,6 @@ import { useAuthUrl } from "#/hooks/use-auth-url";
 import { GetConfigResponse } from "#/api/option-service/option.types";
 import { Provider } from "#/types/settings";
 import { useTracking } from "#/hooks/use-tracking";
-import { useRecaptcha } from "#/hooks/use-recaptcha";
 import { useVerifyRecaptcha } from "#/hooks/mutation/use-verify-recaptcha";
 
 interface AuthModalProps {
@@ -32,19 +32,10 @@ export function AuthModal({
   const { t } = useTranslation();
   const { trackLoginButtonClick } = useTracking();
   const [recaptchaError, setRecaptchaError] = useState(false);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   // Get reCAPTCHA site key from environment variable
   const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || undefined;
-
-  // Initialize reCAPTCHA
-  const {
-    recaptchaRef,
-    getRecaptchaResponse,
-    recaptchaError: recaptchaLoadError,
-  } = useRecaptcha({
-    siteKey: recaptchaSiteKey,
-    enabled: !!recaptchaSiteKey,
-  });
 
   // Hook for verifying reCAPTCHA with backend
   const { mutateAsync: verifyRecaptcha } = useVerifyRecaptcha();
@@ -80,15 +71,22 @@ export function AuthModal({
       return true;
     }
 
-    const response = getRecaptchaResponse();
-    if (!response) {
+    if (!recaptchaRef.current) {
       setRecaptchaError(true);
       return false;
     }
 
+    // For invisible reCAPTCHA, execute the challenge first
     try {
+      const token = await recaptchaRef.current.executeAsync();
+      if (!token) {
+        setRecaptchaError(true);
+        return false;
+      }
+
       // Verify the token with the backend using the mutation hook
-      const verificationResult = await verifyRecaptcha(response);
+      const verificationResult = await verifyRecaptcha(token);
+      console.log("verificationResult", verificationResult);
       if (!verificationResult.success) {
         setRecaptchaError(true);
         return false;
@@ -277,12 +275,14 @@ export function AuthModal({
 
               {recaptchaSiteKey && (
                 <div className="flex justify-center mt-2">
-                  <div ref={recaptchaRef} />
-                  {recaptchaLoadError && (
-                    <div className="text-xs text-muted-foreground text-center mt-1">
-                      {t(I18nKey.AUTH$RECAPTCHA_LOAD_ERROR)}
-                    </div>
-                  )}
+                  <ReCAPTCHA
+                    ref={recaptchaRef}
+                    sitekey={recaptchaSiteKey}
+                    size="invisible"
+                    onError={() => {
+                      setRecaptchaError(true);
+                    }}
+                  />
                 </div>
               )}
             </>

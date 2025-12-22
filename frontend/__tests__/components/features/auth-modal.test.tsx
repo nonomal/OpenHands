@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import { it, describe, expect, vi, beforeEach, afterEach } from "vitest";
 import userEvent from "@testing-library/user-event";
+import React from "react";
 import { AuthModal } from "#/components/features/waitlist/auth-modal";
 import AuthService from "#/api/auth-service/auth-service.api";
 import { renderWithProviders } from "test-utils";
@@ -17,22 +18,33 @@ vi.mock("#/hooks/use-tracking", () => ({
   }),
 }));
 
-// Mock the useRecaptcha hook
-const mockGetRecaptchaResponse = vi.hoisted(() => vi.fn());
-const mockUseRecaptcha = vi.hoisted(() =>
-  vi.fn(() => ({
-    recaptchaLoaded: true,
-    recaptchaError: false,
-    widgetId: 1,
-    recaptchaRef: { current: null },
-    getRecaptchaResponse: mockGetRecaptchaResponse,
-    resetRecaptcha: vi.fn(),
-  })),
+// Minimal mock for react-google-recaptcha - just expose executeAsync via ref
+type RecaptchaHandle = {
+  executeAsync: () => Promise<string | null>;
+  reset: () => void;
+};
+type RecaptchaProps = { sitekey: string; size: string; onError: () => void };
+
+const mockExecuteAsync = vi.hoisted(() =>
+  vi.fn<RecaptchaHandle["executeAsync"]>().mockResolvedValue("mock-token"),
 );
 
-vi.mock("#/hooks/use-recaptcha", () => ({
-  useRecaptcha: mockUseRecaptcha,
-}));
+vi.mock("react-google-recaptcha", () => {
+  return {
+    __esModule: true,
+    default: React.forwardRef<RecaptchaHandle, RecaptchaProps>((props, ref) => {
+      React.useImperativeHandle(ref, () => ({
+        executeAsync: mockExecuteAsync,
+        reset: vi.fn(),
+      }));
+      return React.createElement("div", {
+        "data-testid": "recaptcha-widget",
+        "data-sitekey": props.sitekey,
+        "data-size": props.size,
+      });
+    }),
+  };
+});
 
 describe("AuthModal", () => {
   let verifyRecaptchaSpy: ReturnType<typeof vi.spyOn>;
@@ -40,7 +52,7 @@ describe("AuthModal", () => {
   beforeEach(() => {
     vi.stubGlobal("location", { href: "" });
     verifyRecaptchaSpy = vi.spyOn(AuthService, "verifyRecaptcha");
-    mockGetRecaptchaResponse.mockReturnValue("");
+    mockExecuteAsync.mockResolvedValue("mock-token");
   });
 
   afterEach(() => {
@@ -176,12 +188,12 @@ describe("AuthModal", () => {
       expect(verifyRecaptchaSpy).not.toHaveBeenCalled();
     });
 
-    it("should block auth and show error when reCAPTCHA is not completed", async () => {
+    it("should block auth and show error when reCAPTCHA execution returns no token", async () => {
       // Arrange
       const user = userEvent.setup();
       vi.stubEnv("VITE_RECAPTCHA_SITE_KEY", "test-site-key");
       const mockUrl = "https://github.com/login/oauth/authorize";
-      mockGetRecaptchaResponse.mockReturnValue("");
+      mockExecuteAsync.mockResolvedValue(null);
 
       renderWithProviders(
         <AuthModal
@@ -198,7 +210,9 @@ describe("AuthModal", () => {
       await user.click(githubButton);
 
       // Assert
-      expect(window.location.href).toBe("");
+      await waitFor(() => {
+        expect(window.location.href).toBe("");
+      });
       expect(screen.getByText(/AUTH\$RECAPTCHA_REQUIRED/i)).toBeInTheDocument();
       expect(verifyRecaptchaSpy).not.toHaveBeenCalled();
     });
@@ -209,7 +223,7 @@ describe("AuthModal", () => {
       vi.stubEnv("VITE_RECAPTCHA_SITE_KEY", "test-site-key");
       const mockUrl = "https://github.com/login/oauth/authorize";
       const mockToken = "recaptcha-token-123";
-      mockGetRecaptchaResponse.mockReturnValue(mockToken);
+      mockExecuteAsync.mockResolvedValue(mockToken);
       verifyRecaptchaSpy.mockResolvedValue({ success: false });
 
       renderWithProviders(
@@ -240,7 +254,7 @@ describe("AuthModal", () => {
       vi.stubEnv("VITE_RECAPTCHA_SITE_KEY", "test-site-key");
       const mockUrl = "https://github.com/login/oauth/authorize";
       const mockToken = "recaptcha-token-123";
-      mockGetRecaptchaResponse.mockReturnValue(mockToken);
+      mockExecuteAsync.mockResolvedValue(mockToken);
       verifyRecaptchaSpy.mockResolvedValue({ success: true });
 
       renderWithProviders(
@@ -267,7 +281,7 @@ describe("AuthModal", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("should render reCAPTCHA widget container when site key is configured", () => {
+    it("should render reCAPTCHA widget when site key is configured", () => {
       // Arrange
       vi.stubEnv("VITE_RECAPTCHA_SITE_KEY", "test-site-key");
 
@@ -281,10 +295,7 @@ describe("AuthModal", () => {
       );
 
       // Assert
-      expect(mockUseRecaptcha).toHaveBeenCalledWith({
-        siteKey: "test-site-key",
-        enabled: true,
-      });
+      expect(screen.getByTestId("recaptcha-widget")).toBeInTheDocument();
     });
 
     it("should not render reCAPTCHA widget when site key is not configured", () => {
@@ -301,8 +312,7 @@ describe("AuthModal", () => {
       );
 
       // Assert
-      const recaptchaContainer = document.querySelector("div[ref]");
-      expect(recaptchaContainer).not.toBeInTheDocument();
+      expect(screen.queryByTestId("recaptcha-widget")).not.toBeInTheDocument();
     });
   });
 });

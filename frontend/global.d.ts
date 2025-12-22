@@ -15,18 +15,4 @@ interface Window {
       company?: string;
     }) => void;
   };
-  grecaptcha?: {
-    ready: (callback: () => void) => void;
-    render: (
-      element: HTMLElement,
-      options: {
-        sitekey: string;
-        callback?: (token: string) => void;
-        "expired-callback"?: () => void;
-        "error-callback"?: () => void;
-      },
-    ) => number;
-    reset: (widgetId?: number) => void;
-    getResponse: (widgetId?: number) => string;
-  };
 }
