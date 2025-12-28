@@ -42,8 +42,7 @@ export const useAuthCallback = () => {
       searchParams.delete("login_method");
       searchParams.delete("returnTo");
 
-      // Determine where to navigate after auth
-      // Priority: returnTo param > current path (if not /login) > home
+      // Determine where to navigate after authentication
       let destination = "/";
       if (returnTo && returnTo !== "/login") {
         destination = returnTo;
@@ -51,7 +50,6 @@ export const useAuthCallback = () => {
         destination = location.pathname;
       }
 
-      // If there are remaining search params, append them
       const remainingParams = searchParams.toString();
       const finalUrl = remainingParams
         ? `${destination}?${remainingParams}`
