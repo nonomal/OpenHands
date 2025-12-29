@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AxiosError } from "axios";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import EmailService from "#/api/email-service/email-service.api";
 import { EmailVerificationModal } from "#/components/features/waitlist/email-verification-modal";
 import * as ToastHandlers from "#/utils/custom-toast-handlers";
@@ -9,22 +9,15 @@ import { renderWithProviders } from "../../../../test-utils";
 
 describe("EmailVerificationModal", () => {
   const mockOnClose = vi.fn();
-  let resendEmailVerificationSpy: ReturnType<typeof vi.spyOn>;
-  let displaySuccessToastSpy: ReturnType<typeof vi.spyOn>;
-  let displayErrorToastSpy: ReturnType<typeof vi.spyOn>;
+  const resendEmailVerificationSpy = vi.spyOn(
+    EmailService,
+    "resendEmailVerification",
+  );
+  const displaySuccessToastSpy = vi.spyOn(ToastHandlers, "displaySuccessToast");
+  const displayErrorToastSpy = vi.spyOn(ToastHandlers, "displayErrorToast");
 
   beforeEach(() => {
     vi.clearAllMocks();
-    resendEmailVerificationSpy = vi.spyOn(
-      EmailService,
-      "resendEmailVerification",
-    );
-    displaySuccessToastSpy = vi.spyOn(ToastHandlers, "displaySuccessToast");
-    displayErrorToastSpy = vi.spyOn(ToastHandlers, "displayErrorToast");
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   it("should render the email verification message", () => {
