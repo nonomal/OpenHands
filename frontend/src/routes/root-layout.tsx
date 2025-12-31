@@ -30,6 +30,7 @@ import { LOCAL_STORAGE_KEYS } from "#/utils/local-storage";
 import { EmailVerificationGuard } from "#/components/features/guards/email-verification-guard";
 import { MaintenanceBanner } from "#/components/features/maintenance/maintenance-banner";
 import { cn, isMobileDevice } from "#/utils/utils";
+import { LoadingSpinner } from "#/components/shared/loading-spinner";
 
 export function ErrorBoundary() {
   const error = useRouteError();
@@ -77,6 +78,7 @@ export default function MainApp() {
   const {
     data: isAuthed,
     isFetching: isFetchingAuth,
+    isLoading: isAuthLoading,
     isError: isAuthError,
   } = useIsAuthed();
 
@@ -181,16 +183,16 @@ export default function MainApp() {
     setLoginMethodExists(checkLoginMethodExists());
   }, [isAuthed, checkLoginMethodExists]);
 
-  // Determine if we should redirect to login page
   const shouldRedirectToLogin =
-    !isAuthed &&
-    !isAuthError &&
-    !isFetchingAuth &&
-    !isOnTosPage &&
-    config.data?.APP_MODE === "saas" &&
-    !loginMethodExists;
+    config.isLoading ||
+    isAuthLoading ||
+    isFetchingAuth ||
+    (!isAuthed &&
+      !isAuthError &&
+      !isOnTosPage &&
+      config.data?.APP_MODE === "saas" &&
+      !loginMethodExists);
 
-  // Redirect to login page
   React.useEffect(() => {
     if (shouldRedirectToLogin) {
       const returnTo = pathname !== "/" ? pathname : "";
@@ -200,6 +202,14 @@ export default function MainApp() {
       navigate(loginUrl, { replace: true });
     }
   }, [shouldRedirectToLogin, pathname, navigate]);
+
+  if (shouldRedirectToLogin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-base">
+        <LoadingSpinner size="large" />
+      </div>
+    );
+  }
 
   const renderReAuthModal =
     !isAuthed &&
