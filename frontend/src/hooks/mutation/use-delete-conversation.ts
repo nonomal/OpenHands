@@ -1,6 +1,15 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import ConversationService from "#/api/conversation-service/conversation-service.api";
 
+const cleanupConversationLocalStorage = (conversationId: string) => {
+  const keysToRemove = [
+    `conversation-right-panel-shown-${conversationId}`,
+    `conversation-selected-tab-${conversationId}`,
+    `conversation-unpinned-tabs-${conversationId}`,
+  ];
+  keysToRemove.forEach((key) => localStorage.removeItem(key));
+};
+
 export const useDeleteConversation = () => {
   const queryClient = useQueryClient();
 
@@ -31,6 +40,9 @@ export const useDeleteConversation = () => {
           context.previousConversations,
         );
       }
+    },
+    onSuccess: (_, variables) => {
+      cleanupConversationLocalStorage(variables.conversationId);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["user", "conversations"] });
