@@ -168,10 +168,6 @@ class LiteLlmManager:
                         team_id=org_id,
                     )
 
-        user_settings.agent = 'CodeActAgent'
-        # Use the model corresponding to the current user settings version
-        user_settings.llm_model = get_default_litellm_model()
-        user_settings.llm_base_url = LITE_LLM_API_URL
         return user_settings
 
     @staticmethod
