@@ -1,7 +1,8 @@
-import { screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { it, describe, expect, vi, beforeEach, afterEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import React from "react";
+import { MemoryRouter } from "react-router";
 import { AuthModal } from "#/components/features/waitlist/auth-modal";
 import AuthService from "#/api/auth-service/auth-service.api";
 import { renderWithProviders } from "test-utils";
@@ -62,11 +63,13 @@ describe("AuthModal", () => {
 
   it("should render the GitHub and GitLab buttons", () => {
     renderWithProviders(
-      <AuthModal
-        githubAuthUrl="mock-url"
-        appMode="saas"
-        providersConfigured={["github", "gitlab"]}
-      />,
+      <MemoryRouter>
+        <AuthModal
+          githubAuthUrl="mock-url"
+          appMode="saas"
+          providersConfigured={["github", "gitlab"]}
+        />
+      </MemoryRouter>,
     );
 
     const githubButton = screen.getByRole("button", {
@@ -86,11 +89,13 @@ describe("AuthModal", () => {
     vi.stubEnv("VITE_RECAPTCHA_SITE_KEY", undefined);
     const mockUrl = "https://github.com/login/oauth/authorize";
     renderWithProviders(
-      <AuthModal
-        githubAuthUrl={mockUrl}
-        appMode="saas"
-        providersConfigured={["github"]}
-      />,
+      <MemoryRouter>
+        <AuthModal
+          githubAuthUrl={mockUrl}
+          appMode="saas"
+          providersConfigured={["github"]}
+        />
+      </MemoryRouter>,
     );
 
     // Act
@@ -104,10 +109,14 @@ describe("AuthModal", () => {
   });
 
   it("should render Terms of Service and Privacy Policy text with correct links", () => {
-    renderWithProviders(<AuthModal githubAuthUrl="mock-url" appMode="saas" />);
+    renderWithProviders(
+      <MemoryRouter>
+        <AuthModal githubAuthUrl="mock-url" appMode="saas" />
+      </MemoryRouter>,
+    );
 
     // Find the terms of service section using data-testid
-    const termsSection = screen.getByTestId("auth-modal-terms-of-service");
+    const termsSection = screen.getByTestId("terms-and-privacy-notice");
     expect(termsSection).toBeInTheDocument();
 
     // Check that all text content is present in the paragraph
@@ -144,8 +153,44 @@ describe("AuthModal", () => {
     expect(termsSection).toContainElement(privacyLink);
   });
 
+  it("should display email verified message when emailVerified prop is true", () => {
+    renderWithProviders(
+      <MemoryRouter>
+        <AuthModal
+          githubAuthUrl="mock-url"
+          appMode="saas"
+          emailVerified={true}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText("AUTH$EMAIL_VERIFIED_PLEASE_LOGIN"),
+    ).toBeInTheDocument();
+  });
+
+  it("should not display email verified message when emailVerified prop is false", () => {
+    renderWithProviders(
+      <MemoryRouter>
+        <AuthModal
+          githubAuthUrl="mock-url"
+          appMode="saas"
+          emailVerified={false}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.queryByText("AUTH$EMAIL_VERIFIED_PLEASE_LOGIN"),
+    ).not.toBeInTheDocument();
+  });
+
   it("should open Terms of Service link in new tab", () => {
-    renderWithProviders(<AuthModal githubAuthUrl="mock-url" appMode="saas" />);
+    renderWithProviders(
+      <MemoryRouter>
+        <AuthModal githubAuthUrl="mock-url" appMode="saas" />
+      </MemoryRouter>,
+    );
 
     const tosLink = screen.getByRole("link", {
       name: "COMMON$TERMS_OF_SERVICE",
@@ -154,12 +199,59 @@ describe("AuthModal", () => {
   });
 
   it("should open Privacy Policy link in new tab", () => {
-    renderWithProviders(<AuthModal githubAuthUrl="mock-url" appMode="saas" />);
+    renderWithProviders(
+      <MemoryRouter>
+        <AuthModal githubAuthUrl="mock-url" appMode="saas" />
+      </MemoryRouter>,
+    );
 
     const privacyLink = screen.getByRole("link", {
       name: "COMMON$PRIVACY_POLICY",
     });
     expect(privacyLink).toHaveAttribute("target", "_blank");
+  });
+
+  describe("Duplicate email error message", () => {
+    const renderAuthModalWithRouter = (initialEntries: string[]) => {
+      const hasDuplicatedEmail = initialEntries.includes(
+        "/?duplicated_email=true",
+      );
+
+      return renderWithProviders(
+        <MemoryRouter initialEntries={initialEntries}>
+          <AuthModal
+            githubAuthUrl="mock-url"
+            appMode="saas"
+            providersConfigured={["github"]}
+            hasDuplicatedEmail={hasDuplicatedEmail}
+          />
+        </MemoryRouter>,
+      );
+    };
+
+    it("should display error message when duplicated_email query parameter is true", () => {
+      // Arrange
+      const initialEntries = ["/?duplicated_email=true"];
+
+      // Act
+      renderAuthModalWithRouter(initialEntries);
+
+      // Assert
+      const errorMessage = screen.getByText("AUTH$DUPLICATE_EMAIL_ERROR");
+      expect(errorMessage).toBeInTheDocument();
+    });
+
+    it("should not display error message when duplicated_email query parameter is missing", () => {
+      // Arrange
+      const initialEntries = ["/"];
+
+      // Act
+      renderAuthModalWithRouter(initialEntries);
+
+      // Assert
+      const errorMessage = screen.queryByText("AUTH$DUPLICATE_EMAIL_ERROR");
+      expect(errorMessage).not.toBeInTheDocument();
+    });
   });
 
   describe("reCAPTCHA integration", () => {
