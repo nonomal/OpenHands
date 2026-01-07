@@ -82,7 +82,7 @@ def get_openhands_provider_base_url() -> str | None:
 
 def _get_default_lifespan():
     # Check legacy parameters for saas mode. If we are in SAAS mode do not apply
-    # OSS alembic migrations
+    # OpenHands alembic migrations
     if 'saas' in (os.getenv('OPENHANDS_CONFIG_CLS') or '').lower():
         return None
     return OssAppLifespanService()
@@ -133,6 +133,9 @@ def config_from_env() -> AppServerConfig:
     from openhands.app_server.event.filesystem_event_service import (
         FilesystemEventServiceInjector,
     )
+    from openhands.app_server.event.google_cloud_event_service import (
+        GoogleCloudEventServiceInjector,
+    )
     from openhands.app_server.event_callback.sql_event_callback_service import (
         SQLEventCallbackServiceInjector,
     )
@@ -161,7 +164,13 @@ def config_from_env() -> AppServerConfig:
     config: AppServerConfig = from_env(AppServerConfig, 'OH')  # type: ignore
 
     if config.event is None:
-        config.event = FilesystemEventServiceInjector()
+        if os.environ.get('FILE_STORE') == 'google_cloud':
+            # Legacy V0 google cloud storage configuration
+            config.event = GoogleCloudEventServiceInjector(
+                bucket_name=os.environ.get('FILE_STORE_PATH')
+            )
+        else:
+            config.event = FilesystemEventServiceInjector()
 
     if config.event_callback is None:
         config.event_callback = SQLEventCallbackServiceInjector()

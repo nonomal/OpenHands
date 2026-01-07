@@ -12207,6 +12207,22 @@
     "de": "Für diese E-Mail-Adresse existiert bereits ein Konto.",
     "uk": "Обліковий запис з цією електронною адресою вже існує."
   },
+  "AUTH$LETS_GET_STARTED": {
+    "en": "Let's get started",
+    "ja": "始めましょう",
+    "zh-CN": "让我们开始吧",
+    "zh-TW": "讓我們開始吧",
+    "ko-KR": "시작해 봅시다",
+    "no": "La oss komme i gang",
+    "it": "Iniziamo",
+    "pt": "Vamos começar",
+    "es": "Empecemos",
+    "ar": "لنبدأ",
+    "fr": "Commençons",
+    "tr": "Başlayalım",
+    "de": "Lass uns anfangen",
+    "uk": "Почнімо"
+  },
   "COMMON$TERMS_OF_SERVICE": {
     "en": "Terms of Service",
     "ja": "利用規約",
@@ -14958,6 +14974,22 @@
     "tr": "Çalışıyor",
     "de": "Läuft",
     "uk": "Працює"
+  },
+  "COMMON$WAITING_FOR_SANDBOX": {
+    "en": "Waiting for sandbox",
+    "ja": "サンドボックスを待機中",
+    "zh-CN": "等待沙盒",
+    "zh-TW": "等待沙盒",
+    "ko-KR": "샌드박스를 기다리는 중",
+    "no": "Venter på sandkasse",
+    "it": "In attesa del sandbox",
+    "pt": "Aguardando sandbox",
+    "es": "Esperando el sandbox",
+    "ar": "في انتظار البيئة المعزولة",
+    "fr": "En attente du bac à sable",
+    "tr": "Sandbox bekleniyor",
+    "de": "Warten auf Sandbox",
+    "uk": "Очікування пісочниці"
   },
   "COMMON$SELECT_GIT_PROVIDER": {
     "en": "Select Git provider",
