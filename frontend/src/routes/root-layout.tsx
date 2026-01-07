@@ -29,6 +29,7 @@ import { EmailVerificationGuard } from "#/components/features/guards/email-verif
 import { MaintenanceBanner } from "#/components/features/maintenance/maintenance-banner";
 import { cn, isMobileDevice } from "#/utils/utils";
 import { LoadingSpinner } from "#/components/shared/loading-spinner";
+import { useAppTitle } from "#/hooks/use-app-title";
 
 export function ErrorBoundary() {
   const error = useRouteError();
@@ -64,6 +65,7 @@ export function ErrorBoundary() {
 }
 
 export default function MainApp() {
+  const appTitle = useAppTitle();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const isOnTosPage = useIsOnTosPage();
@@ -224,6 +226,7 @@ export default function MainApp() {
         isMobileDevice() && "overflow-hidden",
       )}
     >
+      <title>{appTitle}</title>
       <Sidebar />
 
       <div className="flex flex-col w-full h-[calc(100%-50px)] md:h-full gap-3">
