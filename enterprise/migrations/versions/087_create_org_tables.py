@@ -74,7 +74,6 @@ def upgrade() -> None:
             server_default=sa.text('false'),
         ),
         sa.Column('default_llm_model', sa.String, nullable=True),
-        sa.Column('_default_llm_api_key_for_byor', sa.String, nullable=True),
         sa.Column('default_llm_base_url', sa.String, nullable=True),
         sa.Column('remote_runtime_resource_factor', sa.Integer, nullable=True),
         sa.Column(

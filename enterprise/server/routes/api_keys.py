@@ -33,15 +33,7 @@ async def get_byor_key_from_db(user_id: str) -> str | None:
             return None
         if current_org_member.llm_api_key_for_byor:
             return current_org_member.llm_api_key_for_byor.get_secret_value()
-
-        org = OrgStore.get_org_by_id(current_org_id)
-        if not org:
-            return None
-        return (
-            org.default_llm_api_key_for_byor.get_secret_value()
-            if org.default_llm_api_key_for_byor
-            else None
-        )
+        return None
 
     return await call_sync_from_async(_get_byor_key)
 

@@ -26,8 +26,6 @@ class Org(Base):  # type: ignore
     security_analyzer = Column(String, nullable=True)
     confirmation_mode = Column(Boolean, nullable=True, default=False)
     default_llm_model = Column(String, nullable=True)
-    # encrypted column, don't set directly, set without the underscore
-    _default_llm_api_key_for_byor = Column(String, nullable=True)
     default_llm_base_url = Column(String, nullable=True)
     remote_runtime_resource_factor = Column(Integer, nullable=True)
     enable_default_condenser = Column(Boolean, nullable=False, default=True)
@@ -69,10 +67,6 @@ class Org(Base):  # type: ignore
                 setattr(self, key, kwargs.pop(key))
 
         # Handle custom property-style fields
-        if 'default_llm_api_key_for_byor' in kwargs:
-            self.default_llm_api_key_for_byor = kwargs.pop(
-                'default_llm_api_key_for_byor'
-            )
         if 'search_api_key' in kwargs:
             self.search_api_key = kwargs.pop('search_api_key')
         if 'sandbox_api_key' in kwargs:
@@ -80,18 +74,6 @@ class Org(Base):  # type: ignore
 
         if kwargs:
             raise TypeError(f'Unexpected keyword arguments: {list(kwargs.keys())}')
-
-    @property
-    def default_llm_api_key_for_byor(self) -> SecretStr | None:
-        if self._default_llm_api_key_for_byor:
-            decrypted = decrypt_value(self._default_llm_api_key_for_byor)
-            return SecretStr(decrypted)
-        return None
-
-    @default_llm_api_key_for_byor.setter
-    def default_llm_api_key_for_byor(self, value: str | SecretStr | None):
-        raw = value.get_secret_value() if isinstance(value, SecretStr) else value
-        self._default_llm_api_key_for_byor = encrypt_value(raw) if raw else None
 
     @property
     def search_api_key(self) -> SecretStr | None:
