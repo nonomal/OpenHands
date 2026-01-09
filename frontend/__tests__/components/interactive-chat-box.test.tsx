@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router";
@@ -246,5 +246,32 @@ describe("InteractiveChatBox", () => {
 
     // Verify the text input was cleared
     expect(screen.getByTestId("chat-input")).toHaveTextContent("");
+  });
+
+  it("should not submit when Enter is pressed during IME composition", async () => {
+    const user = userEvent.setup();
+    mockStores(AgentState.AWAITING_USER_INPUT);
+
+    renderInteractiveChatBox({
+      onSubmit: onSubmitMock,
+    });
+
+    const textarea = screen.getByTestId("chat-input");
+
+    // Type some text (simulating IME input like Chinese/Japanese/Korean)
+    await user.type(textarea, "こんにちは");
+    textarea.innerText = "こんにちは";
+
+    // Simulate Enter during IME composition - should NOT submit
+    fireEvent.keyDown(textarea, {
+      key: "Enter",
+      nativeEvent: { isComposing: true },
+    });
+
+    // Should NOT have submitted because IME is composing
+    expect(onSubmitMock).not.toHaveBeenCalled();
+
+    // Verify the text is still there (not cleared by submission)
+    expect(textarea).toHaveTextContent("こんにちは");
   });
 });
