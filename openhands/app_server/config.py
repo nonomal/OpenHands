@@ -82,7 +82,7 @@ def get_openhands_provider_base_url() -> str | None:
 
 def _get_default_lifespan():
     # Check legacy parameters for saas mode. If we are in SAAS mode do not apply
-    # OSS alembic migrations
+    # OpenHands alembic migrations
     if 'saas' in (os.getenv('OPENHANDS_CONFIG_CLS') or '').lower():
         return None
     return OssAppLifespanService()
@@ -133,6 +133,9 @@ def config_from_env() -> AppServerConfig:
     from openhands.app_server.event.filesystem_event_service import (
         FilesystemEventServiceInjector,
     )
+    from openhands.app_server.event.google_cloud_event_service import (
+        GoogleCloudEventServiceInjector,
+    )
     from openhands.app_server.event_callback.sql_event_callback_service import (
         SQLEventCallbackServiceInjector,
     )
@@ -161,7 +164,13 @@ def config_from_env() -> AppServerConfig:
     config: AppServerConfig = from_env(AppServerConfig, 'OH')  # type: ignore
 
     if config.event is None:
-        config.event = FilesystemEventServiceInjector()
+        if os.environ.get('FILE_STORE') == 'google_cloud':
+            # Legacy V0 google cloud storage configuration
+            config.event = GoogleCloudEventServiceInjector(
+                bucket_name=os.environ.get('FILE_STORE_PATH')
+            )
+        else:
+            config.event = FilesystemEventServiceInjector()
 
     if config.event_callback is None:
         config.event_callback = SQLEventCallbackServiceInjector()
@@ -186,6 +195,33 @@ def config_from_env() -> AppServerConfig:
                 docker_sandbox_kwargs['container_url_pattern'] = os.environ[
                     'SANDBOX_CONTAINER_URL_PATTERN'
                 ]
+            # Parse SANDBOX_VOLUMES and convert to VolumeMount objects
+            # This is set by the CLI's --mount-cwd flag
+            sandbox_volumes = os.getenv('SANDBOX_VOLUMES')
+            if sandbox_volumes:
+                from openhands.app_server.sandbox.docker_sandbox_service import (
+                    VolumeMount,
+                )
+
+                mounts = []
+                for mount_spec in sandbox_volumes.split(','):
+                    mount_spec = mount_spec.strip()
+                    if not mount_spec:
+                        continue
+                    parts = mount_spec.split(':')
+                    if len(parts) >= 2:
+                        host_path = parts[0]
+                        container_path = parts[1]
+                        mode = parts[2] if len(parts) > 2 else 'rw'
+                        mounts.append(
+                            VolumeMount(
+                                host_path=host_path,
+                                container_path=container_path,
+                                mode=mode,
+                            )
+                        )
+                if mounts:
+                    docker_sandbox_kwargs['mounts'] = mounts
             config.sandbox = DockerSandboxServiceInjector(**docker_sandbox_kwargs)
 
     if config.sandbox_spec is None:
