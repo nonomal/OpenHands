@@ -160,6 +160,11 @@ describe("Settings Billing", () => {
 
   it("should not render the billing tab if OSS mode", async () => {
     // OSS mode is set by default in beforeEach
+    vi.mocked(getActiveOrganizationUser).mockResolvedValue({
+      user_id: "u1",
+      role: "admin",
+    } as OrganizationMember);
+
     renderSettingsScreen();
 
     const navbar = await screen.findByTestId("settings-navbar");
@@ -167,7 +172,7 @@ describe("Settings Billing", () => {
     expect(credits).not.toBeInTheDocument();
   });
 
-  it("shows Billing for admin in SaaS mode", async () => {
+  it("should render the billing tab if: SaaS mode, billing is enabled, and admin user", async () => {
     vi.mocked(getActiveOrganizationUser).mockResolvedValue({
       user_id: "u1",
       role: "admin",
@@ -178,9 +183,10 @@ describe("Settings Billing", () => {
     renderSettingsScreen();
 
     const navbar = await screen.findByTestId("settings-navbar");
-    const billingLink = within(navbar).getByRole("link", { name: /billing/i });
-    expect(billingLink).toBeInTheDocument();
+    within(navbar).getByText("Billing");
   });
+
+  //TODO:: should NOT render billing tab if member
 
   it("should render the billing settings if clicking the billing item", async () => {
     const user = userEvent.setup();

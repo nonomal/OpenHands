@@ -236,10 +236,6 @@ function ManageOrg() {
   const role = me?.role ?? "member";
   const { hasPermission } = usePermission(role);
 
-  const canChangeOrgName = !!me && hasPermission("change_organization_name");
-  const canDeleteOrg = !!me && hasPermission("delete_organization");
-  const canAddCredits = !!me && hasPermission("add_credits");
-
   const [addCreditsFormVisible, setAddCreditsFormVisible] =
     React.useState(false);
   const [changeOrgNameFormVisible, setChangeOrgNameFormVisible] =
@@ -247,7 +243,11 @@ function ManageOrg() {
   const [deleteOrgConfirmationVisible, setDeleteOrgConfirmationVisible] =
     React.useState(false);
 
-  const isBillingHidden = config?.FEATURE_FLAGS?.HIDE_BILLING; // TODO use hook
+  const canChangeOrgName = !!me && hasPermission("change_organization_name");
+  const canDeleteOrg = !!me && hasPermission("delete_organization");
+  const canAddCredits = !!me && hasPermission("add_credits");
+  const isBillingHidden =
+    config?.FEATURE_FLAGS?.HIDE_BILLING || role === "member";
 
   return (
     <div

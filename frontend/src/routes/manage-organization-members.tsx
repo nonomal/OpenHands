@@ -46,10 +46,12 @@ function ManageOrganizationMembers() {
   const { data: user } = useMe();
   const { mutate: updateMemberRole } = useUpdateMemberRole();
   const { mutate: removeMember } = useRemoveMember();
-
   const [inviteModalOpen, setInviteModalOpen] = React.useState(false);
 
   const currentUserRole = user?.role || "member";
+
+  const { hasPermission } = usePermission(currentUserRole);
+  const hasPermissionToInvite = hasPermission("invite_user_to_organization");
 
   const handleRoleSelectionClick = (id: string, role: OrganizationUserRole) => {
     updateMemberRole({ userId: id, role });
@@ -63,10 +65,6 @@ function ManageOrganizationMembers() {
     () => getAvailableRolesAUserCanAssign(rolePermissions[currentUserRole]),
     [currentUserRole],
   );
-
-  // Check specific permissions
-  const { hasPermission } = usePermission(currentUserRole);
-  const hasPermissionToInvite = hasPermission("invite_user_to_organization");
 
   return (
     <div

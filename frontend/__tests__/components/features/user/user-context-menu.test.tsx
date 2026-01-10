@@ -63,14 +63,6 @@ vi.mock("#/stores/selected-organization-store", () => ({
   getSelectedOrganizationIdFromStore: () => "org-1",
 }));
 
-vi.mock("#/hooks/query/use-organizations", () => ({
-  useOrganizations: () => ({
-    data: INITIAL_MOCK_ORGS,
-    isLoading: false,
-    isError: false,
-  }),
-}));
-
 describe("UserContextMenu", () => {
   afterEach(() => {
     vi.clearAllMocks();
@@ -91,40 +83,42 @@ describe("UserContextMenu", () => {
     expect(screen.queryByText("ORG$MANAGE_ACCOUNT")).not.toBeInTheDocument();
   });
 
-it("should render navigation items from SAAS_NAV_ITEMS when user role is admin", async () => {
-  vi.spyOn(OptionService, "getConfig").mockResolvedValue({
-    APP_MODE: "saas",
-    GITHUB_CLIENT_ID: "test",
-    POSTHOG_CLIENT_KEY: "test",
-    FEATURE_FLAGS: {
-      ENABLE_BILLING: true,
-      HIDE_LLM_SETTINGS: false,
-      HIDE_BILLING: false,
-      ENABLE_JIRA: false,
-      ENABLE_JIRA_DC: false,
-      ENABLE_LINEAR: false,
-    },
+  it("should render navigation items from SAAS_NAV_ITEMS when user role is admin (except organization-members/org)", async () => {
+    vi.spyOn(OptionService, "getConfig").mockResolvedValue({
+      APP_MODE: "saas",
+      GITHUB_CLIENT_ID: "test",
+      POSTHOG_CLIENT_KEY: "test",
+      FEATURE_FLAGS: {
+        ENABLE_BILLING: true,
+        HIDE_LLM_SETTINGS: false,
+        HIDE_BILLING: false,
+        ENABLE_JIRA: false,
+        ENABLE_JIRA_DC: false,
+        ENABLE_LINEAR: false,
+      },
+    });
+
+    vi.spyOn(organizationService, "getMe").mockResolvedValue({
+      user_id: "u1",
+      role: "admin",
+    } as OrganizationMember);
+
+    renderUserContextMenu({ type: "admin", onClose: vi.fn });
+
+    // Wait for config to load and verify that navigation items are rendered (except organization-members/org which are filtered out)
+    const expectedItems = SAAS_NAV_ITEMS.filter(
+      (item) =>
+        item.to !== "/settings/org-members" && item.to !== "/settings/org",
+    );
+
+    await waitFor(() => {
+      expectedItems.forEach((item) => {
+        expect(screen.getByText(item.text)).toBeInTheDocument();
+      });
+    });
   });
 
-  vi.spyOn(organizationService, "getMe").mockResolvedValue({
-    user_id: "u1",
-    role: "admin",
-  } as OrganizationMember);
-
-  renderUserContextMenu({ type: "admin", onClose: vi.fn });
-
-  await waitFor(() => {
-    expect(screen.getByText("SETTINGS$NAV_BILLING")).toBeInTheDocument();
-  });
-
-  const expectedItems = SAAS_NAV_ITEMS.filter(
-    (item) => item.to !== "/settings/org-members" && item.to !== "/settings/org"
-  );
-
-  expectedItems.forEach((item) => {
-    expect(screen.getByText(item.text)).toBeInTheDocument();
-  });
-});
+  // TODO: Add tezst for should NOT render billing in nav when user is member
 
   it("should not display Organization Members menu item for regular users (filtered out)", () => {
     renderUserContextMenu({ type: "member", onClose: vi.fn });

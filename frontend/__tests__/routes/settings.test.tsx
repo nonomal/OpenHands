@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import { QueryClientProvider } from "@tanstack/react-query";
 import SettingsScreen, { clientLoader } from "#/routes/settings";
 import OptionService from "#/api/option-service/option-service.api";
+import { OrganizationMember } from "#/types/org";
+import * as orgStore from "#/stores/selected-organization-store";
 
 // Mock the i18next hook
 vi.mock("react-i18next", async () => {
@@ -50,6 +52,19 @@ describe("Settings Screen", () => {
   vi.mock("#/query-client-config", () => ({
     queryClient: mockQueryClient,
   }));
+
+  const seedActiveUser = (
+    orgId: string,
+    user: Partial<OrganizationMember>,
+  ) => {
+    mockQueryClient.setQueryData(
+      ["members", orgId, "me"],
+      { user_id: "u1", role: "admin", ...user } as OrganizationMember,
+    );
+
+    vi.spyOn(orgStore, "getSelectedOrganizationIdFromStore")
+      .mockReturnValue(orgId);
+  };
 
   const RouterStub = createRoutesStub([
     {
@@ -132,6 +147,7 @@ describe("Settings Screen", () => {
     // Clear any existing query data and set the config
     mockQueryClient.clear();
     mockQueryClient.setQueryData(["config"], saasConfig);
+    seedActiveUser("orgId-1", { role: "admin" });
 
     const sectionsToInclude = [
       "llm", // LLM settings are now always shown in SaaS mode
@@ -246,6 +262,7 @@ describe("Settings Screen", () => {
       });
 
       mockQueryClient.clear();
+      seedActiveUser("orgId-1", { role: "admin" });
 
       // Act
       renderSettingsScreen();

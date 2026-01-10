@@ -8,8 +8,8 @@ import * as orgStore from "#/stores/selected-organization-store";
 import { OrganizationMember } from "#/types/org";
 import { useActiveOrganizationMember } from "#/hooks/use-settings-nav-items";
 import { organizationService } from "#/api/organization-service/organization-service.api";
-let queryClient: QueryClient;
 
+const queryClient = new QueryClient();
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 );
@@ -31,20 +31,13 @@ const seedActiveUser = (
     { user_id: "u1", role: "admin", ...user } as OrganizationMember,
   );
 
-  vi.spyOn(orgStore, "getSelectedOrganizationIdFromStore")
+  vi.spyOn(orgStore, "getSelectedOrganizationIdFromStore") //TODO:: correct format
     .mockReturnValue(orgId);
 };
 
 describe("useSettingsNavItems", () => {
   beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-        },
-      },
-    });
-
+    queryClient.clear();
     vi.restoreAllMocks();
   });
 

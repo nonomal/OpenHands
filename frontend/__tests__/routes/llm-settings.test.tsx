@@ -2,7 +2,6 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
-import { createMemoryRouter, RouterProvider } from "react-router";
 import LlmSettingsScreen from "#/routes/llm-settings";
 import SettingsService from "#/api/settings-service/settings-service.api";
 import {
@@ -30,23 +29,14 @@ vi.mock("#/hooks/query/use-is-authed", () => ({
   useIsAuthed: () => mockUseIsAuthed(),
 }));
 
-export const renderLlmSettingsScreen = () => {
-  const router = createMemoryRouter(
-    [
-      {
-        path: "/",
-        element: <LlmSettingsScreen />,
-      },
-    ],
-    { initialEntries: ["/"] }
-  );
-
-  return render(
-    <QueryClientProvider client={new QueryClient()}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
-  );
-};
+const renderLlmSettingsScreen = () =>
+  render(<LlmSettingsScreen />, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={new QueryClient()}>
+        {children}
+      </QueryClientProvider>
+    ),
+  });
 
 beforeEach(() => {
   vi.resetAllMocks();
