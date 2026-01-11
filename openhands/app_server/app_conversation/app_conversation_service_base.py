@@ -32,7 +32,7 @@ from openhands.app_server.user.user_context import UserContext
 from openhands.sdk import Agent
 from openhands.sdk.context.agent_context import AgentContext
 from openhands.sdk.context.condenser import LLMSummarizingCondenser
-from openhands.sdk.context.skills import load_project_skills, load_user_skills
+from openhands.sdk.context.skills import load_user_skills
 from openhands.sdk.llm import LLM
 from openhands.sdk.security.analyzer import SecurityAnalyzerBase
 from openhands.sdk.security.confirmation_policy import (
@@ -85,22 +85,6 @@ class AppConversationServiceBase(AppConversationService, ABC):
             sandbox_skills = load_sandbox_skills(sandbox)
             global_skills = load_global_skills()
 
-            # Load skills from the local repository checkout (project skills).
-            # This is the CLI-style behavior and uses the SDK loader, which ensures:
-            # - markdown files in .openhands/skills/ without triggers become trigger=None
-            #   and are injected into <REPO_CONTEXT> (always active)
-            # - legacy .openhands/microagents/ is supported
-            try:
-                local_project_skills = load_project_skills(working_dir)
-                _logger.info(
-                    'Loaded %d local project skills: %s',
-                    len(local_project_skills),
-                    [s.name for s in local_project_skills],
-                )
-            except Exception as e:
-                _logger.warning(f'Failed to load local project skills: {str(e)}')
-                local_project_skills = []
-
             # Load user skills from ~/.openhands/skills/ directory
             # Uses the SDK's load_user_skills() function which handles loading from
             # ~/.openhands/skills/ and ~/.openhands/microagents/ (for backward compatibility)
@@ -124,12 +108,11 @@ class AppConversationServiceBase(AppConversationService, ABC):
             )
 
             # Merge all skills (later lists override earlier ones)
-            # Precedence: sandbox < global < local project < user < org < repo
+            # Precedence: sandbox < global < user < org < repo
             all_skills = merge_skills(
                 [
                     sandbox_skills,
                     global_skills,
-                    local_project_skills,
                     user_skills,
                     org_skills,
                     repo_skills,

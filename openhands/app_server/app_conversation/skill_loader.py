@@ -17,7 +17,12 @@ from openhands.app_server.sandbox.sandbox_models import SandboxInfo
 from openhands.app_server.user.user_context import UserContext
 from openhands.integrations.provider import ProviderType
 from openhands.integrations.service_types import AuthenticationError
+import io
+
+import frontmatter
+
 from openhands.sdk.context.skills import Skill
+from openhands.sdk.context.skills.trigger import KeywordTrigger, TaskTrigger
 from openhands.sdk.workspace.remote.async_remote_workspace import AsyncRemoteWorkspace
 
 _logger = logging.getLogger(__name__)
@@ -120,6 +125,50 @@ def _determine_repo_root(working_dir: str, selected_repository: str | None) -> s
         repo_name = selected_repository.split('/')[-1]
         return f'{working_dir}/{repo_name}'
     return working_dir
+
+
+
+def _skill_from_markdown_content(
+    *,
+    name: str,
+    content: str,
+    source: str,
+) -> Skill:
+    """Create an SDK Skill from markdown content stored in a remote workspace.
+
+    We cannot call Skill.load() here because that API reads from local disk.
+    """
+    loaded = frontmatter.load(io.StringIO(content))
+    body = loaded.content
+    metadata = loaded.metadata or {}
+
+    # Prefer explicit frontmatter name, otherwise derive from filename
+    skill_name = str(metadata.get('name', name))
+
+    triggers = metadata.get('triggers')
+    if triggers is None:
+        trigger_obj = None
+    else:
+        if not isinstance(triggers, list):
+            raise ValueError('Skill triggers must be a list')
+
+        # inputs -> task triggers in SDK
+        if 'inputs' in metadata:
+            # Match SDK behavior: ensure /{name} trigger exists
+            slash = f'/{skill_name}'
+            if slash not in triggers:
+                triggers = [*triggers, slash]
+            trigger_obj = TaskTrigger(triggers=[str(t) for t in triggers])
+        else:
+            trigger_obj = KeywordTrigger(keywords=[str(t) for t in triggers])
+
+    return Skill(
+        name=skill_name,
+        content=body,
+        source=source,
+        trigger=trigger_obj,
+        mcp_tools=metadata.get('mcp_tools'),
+    )
 
 
 async def _is_gitlab_repository(repo_name: str, user_context: UserContext) -> bool:
@@ -265,8 +314,11 @@ async def _load_special_files(
 
         if content:
             try:
-                # Use simple string path to avoid Path filesystem operations
-                skill = Skill.load(path=filename, skill_dir=None, file_content=content)
+                skill = _skill_from_markdown_content(
+                    name=Path(filename).stem,
+                    content=content,
+                    source=file_path,
+                )
                 skills.append(skill)
                 _logger.debug(f'Loaded special file skill: {skill.name}')
             except Exception as e:
@@ -315,9 +367,10 @@ async def _find_and_load_skill_md_files(
                     # Calculate relative path for skill name
                     rel_path = file_path.replace(f'{skill_dir}/', '')
                     try:
-                        # Use simple string path to avoid Path filesystem operations
-                        skill = Skill.load(
-                            path=rel_path, skill_dir=None, file_content=content
+                        skill = _skill_from_markdown_content(
+                            name=Path(rel_path).stem,
+                            content=content,
+                            source=file_path,
                         )
                         skills.append(skill)
                         _logger.debug(f'Loaded repo skill: {skill.name}')

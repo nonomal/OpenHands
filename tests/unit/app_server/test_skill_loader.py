@@ -212,55 +212,36 @@ class TestLoadSpecialFiles:
     @patch(
         'openhands.app_server.app_conversation.skill_loader._read_file_from_workspace'
     )
-    @patch('openhands.app_server.app_conversation.skill_loader.Skill')
-    async def test_load_all_special_files(
-        self,
-        mock_skill_class,
-        mock_read_file,
-        mock_async_remote_workspace,
-        mock_skills_list,
-    ):
+    async def test_load_all_special_files(self, mock_read_file, mock_async_remote_workspace):
         """Test loading all special files successfully."""
-        # Mock reading files - return content for each special file
         mock_read_file.side_effect = [
             'cursorrules content',
             'agents.md content',
             'agent.md content',
         ]
 
-        # Mock skill creation
-        mock_skill_class.load.side_effect = mock_skills_list
-
         result = await _load_special_files(
             mock_async_remote_workspace, '/repo', '/workspace'
         )
 
-        assert len(result) == 3
-        assert result == mock_skills_list
+        assert [s.name for s in result] == ['.cursorrules', 'agents', 'agent']
         assert mock_read_file.call_count == 3
-        assert mock_skill_class.load.call_count == 3
 
     @pytest.mark.asyncio
     @patch(
         'openhands.app_server.app_conversation.skill_loader._read_file_from_workspace'
     )
-    @patch('openhands.app_server.app_conversation.skill_loader.Skill')
-    async def test_load_partial_special_files(
-        self, mock_skill_class, mock_read_file, mock_async_remote_workspace, mock_skill
-    ):
+    async def test_load_partial_special_files(self, mock_read_file, mock_async_remote_workspace):
         """Test loading when only some special files exist."""
-        # Only .cursorrules exists
         mock_read_file.side_effect = ['cursorrules content', None, None]
-        mock_skill_class.load.return_value = mock_skill
 
         result = await _load_special_files(
             mock_async_remote_workspace, '/repo', '/workspace'
         )
 
         assert len(result) == 1
-        assert result[0] == mock_skill
+        assert result[0].name == '.cursorrules'
         assert mock_read_file.call_count == 3
-        assert mock_skill_class.load.call_count == 1
 
     @pytest.mark.asyncio
     @patch(
@@ -286,13 +267,10 @@ class TestFindAndLoadSkillMdFiles:
     @patch(
         'openhands.app_server.app_conversation.skill_loader._read_file_from_workspace'
     )
-    @patch('openhands.app_server.app_conversation.skill_loader.Skill')
     async def test_find_and_load_files_success(
         self,
-        mock_skill_class,
         mock_read_file,
         mock_async_remote_workspace,
-        mock_skills_list,
     ):
         """Test successfully finding and loading skill .md files."""
         result_obj = Mock()
@@ -302,27 +280,27 @@ class TestFindAndLoadSkillMdFiles:
         )
         mock_async_remote_workspace.execute_command.return_value = result_obj
 
-        mock_read_file.side_effect = ['content1', 'content2']
-        mock_skill_class.load.side_effect = mock_skills_list[:2]
+        mock_read_file.side_effect = [
+            '---\nname: test1\n---\ncontent1',
+            'content2',
+        ]
 
         result = await _find_and_load_skill_md_files(
             mock_async_remote_workspace, '/repo/.openhands/skills', '/workspace'
         )
 
         assert len(result) == 2
-        assert result == mock_skills_list[:2]
-
-        # Verify relative paths are used
-        assert mock_skill_class.load.call_args_list[0][1]['path'] == 'test1.md'
-        assert mock_skill_class.load.call_args_list[1][1]['path'] == 'test2.md'
+        assert result[0].name == 'test1'
+        assert result[0].trigger is None
+        assert result[1].name == 'test2'
+        assert result[1].trigger is None
 
     @pytest.mark.asyncio
     @patch(
         'openhands.app_server.app_conversation.skill_loader._read_file_from_workspace'
     )
-    @patch('openhands.app_server.app_conversation.skill_loader.Skill')
     async def test_find_and_load_excludes_readme(
-        self, mock_skill_class, mock_read_file, mock_async_remote_workspace, mock_skill
+        self, mock_read_file, mock_async_remote_workspace
     ):
         """Test that README.md files are excluded."""
         result_obj = Mock()
@@ -333,15 +311,13 @@ class TestFindAndLoadSkillMdFiles:
         mock_async_remote_workspace.execute_command.return_value = result_obj
 
         mock_read_file.return_value = 'content'
-        mock_skill_class.load.return_value = mock_skill
 
         result = await _find_and_load_skill_md_files(
             mock_async_remote_workspace, '/repo/.openhands/skills', '/workspace'
         )
 
         assert len(result) == 1
-        assert result[0] == mock_skill
-        # Verify README.md was not processed
+        assert result[0].name == 'test'
         assert mock_read_file.call_count == 1
 
     @pytest.mark.asyncio
@@ -389,20 +365,14 @@ class TestFindAndLoadSkillMdFiles:
 
         mock_read_file.side_effect = ['content1', None]
 
-        with patch(
-            'openhands.app_server.app_conversation.skill_loader.Skill'
-        ) as mock_skill_class:
-            mock_skill = Mock()
-            mock_skill_class.load.return_value = mock_skill
+        result = await _find_and_load_skill_md_files(
+            mock_async_remote_workspace,
+            '/repo/.openhands/skills',
+            '/workspace',
+        )
 
-            result = await _find_and_load_skill_md_files(
-                mock_async_remote_workspace,
-                '/repo/.openhands/skills',
-                '/workspace',
-            )
-
-            assert len(result) == 1
-            assert mock_skill_class.load.call_count == 1
+        assert len(result) == 1
+        assert result[0].name == 'test1'
 
 
 class TestFindAndLoadGlobalSkillFiles:
