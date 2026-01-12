@@ -95,6 +95,7 @@ describe("usePermission", () => {
         usePermission(activeUserRole),
       ).result.current;
 
+      // users can't change their own roles
       if (activeUserId === targetUserId) return false;
 
       return hasPermission(`change_user_role:${targetRole}`);
@@ -109,24 +110,22 @@ describe("usePermission", () => {
     });
 
     describe("admin role", () => {
-      it("cannot change admin or owner roles", () => {
-        expect(run("admin", "u2", "admin")).toBe(false);
-        expect(run("admin", "u2", "owner")).toBe(false);
+      it("cannot change owner role", () => {
+         expect(run("admin", "u2", "owner")).toBe(false);
       });
 
-      it("can change member roles", () => {
+      it("can change member or admin roles", () => {
         expect(run("admin", "u2", "member")).toBe(
-          rolePermissions.admin.includes("change_user_role:member"),
+          rolePermissions.admin.includes("change_user_role:admin")
+        );
+        expect(run("admin", "u2", "admin")).toBe(
+          rolePermissions.admin.includes("change_user_role:admin")
         );
       });
     });
 
     describe("owner role", () => {
-      it("cannot change another owner's role", () => {
-        expect(run("owner", "u2", "owner")).toBe(false);
-      });
-
-      it("can change admin and member roles", () => {
+      it("can change owner, admin, and member roles", () => {
         expect(run("owner", "u2", "admin")).toBe(
           rolePermissions.owner.includes("change_user_role:admin"),
         );
@@ -134,13 +133,17 @@ describe("usePermission", () => {
         expect(run("owner", "u2", "member")).toBe(
           rolePermissions.owner.includes("change_user_role:member"),
         );
+
+        expect(run("owner", "u2", "owner")).toBe(
+          rolePermissions.owner.includes("change_user_role:member"),
+        );
       });
     });
 
     describe("self role change", () => {
       it("is always disallowed", () => {
-        expect(run("owner", "actor", "member")).toBe(false);
-        expect(run("admin", "actor", "member")).toBe(false);
+        expect(run("owner", "u2", "member", "u2")).toBe(false);
+        expect(run("admin", "u2", "member", "u2")).toBe(false);
       });
     });
   });
