@@ -8,13 +8,17 @@ import { AxiosError } from "axios";
 import userEvent from "@testing-library/user-event";
 import { INITIAL_MOCK_ORGS } from "#/mocks/org-handlers";
 
+export const useParamsMock = vi.fn(() => ({
+  conversationId: "test-conversation-id",
+}));
+
 // Mock useParams before importing components
 vi.mock("react-router", async () => {
   const actual =
     await vi.importActual<typeof import("react-router")>("react-router");
   return {
     ...actual,
-    useParams: () => ({ conversationId: "test-conversation-id" }),
+    useParams: useParamsMock,
     useRevalidator: () => ({
       revalidate: vi.fn(),
     }),
