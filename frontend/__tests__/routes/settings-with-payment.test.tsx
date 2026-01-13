@@ -6,8 +6,7 @@ import { renderWithProviders } from "test-utils";
 import SettingsScreen from "#/routes/settings";
 import { PaymentForm } from "#/components/features/payment/payment-form";
 import { QueryClient } from "@tanstack/react-query";
-import { OrganizationMember } from "#/types/org";
-import { getActiveOrganizationUser } from "#/utils/org/permission-checks";
+import * as PermissionChecksModule from "#/utils/org/permission-checks";
 
 let queryClient: QueryClient;
 
@@ -25,7 +24,7 @@ vi.mock("#/hooks/query/use-settings", async () => {
   };
 });
 
-// Mock the i18next
+// Mock the i18next hook
 vi.mock("react-i18next", async () => {
   const actual =
     await vi.importActual<typeof import("react-i18next")>("react-i18next");
@@ -53,15 +52,6 @@ vi.mock("react-i18next", async () => {
     }),
   };
 });
-
-// Mock permission checks
-vi.mock("#/utils/org/permission-checks", () => ({
-  getActiveOrganizationUser: vi.fn(),
-}));
-vi.mocked(getActiveOrganizationUser).mockResolvedValue({
-  user_id: "u1",
-  role: "admin",
-} as OrganizationMember);
 
 // Mock useConfig hook
 const { mockUseConfig } = vi.hoisted(() => ({
@@ -160,10 +150,14 @@ describe("Settings Billing", () => {
 
   it("should not render the billing tab if OSS mode", async () => {
     // OSS mode is set by default in beforeEach
-    vi.mocked(getActiveOrganizationUser).mockResolvedValue({
+    vi.spyOn(
+      PermissionChecksModule,
+      "getActiveOrganizationUser",
+      // @ts-expect-error - only return relevant data
+    ).mockResolvedValue({
       user_id: "u1",
       role: "admin",
-    } as OrganizationMember);
+    });
 
     renderSettingsScreen();
 
@@ -173,10 +167,14 @@ describe("Settings Billing", () => {
   });
 
   it("should render the billing tab if: SaaS mode, billing is enabled, and admin user", async () => {
-    vi.mocked(getActiveOrganizationUser).mockResolvedValue({
+    vi.spyOn(
+      PermissionChecksModule,
+      "getActiveOrganizationUser",
+      // @ts-expect-error - only return relevant data
+    ).mockResolvedValue({
       user_id: "u1",
       role: "admin",
-    } as OrganizationMember);
+    });
 
     seedConfig(); // Ensure SaaS mode
 
@@ -187,10 +185,14 @@ describe("Settings Billing", () => {
   });
 
   it("should NOT render the billing tab if: SaaS mode, billing is enabled, and member user", async () => {
-    vi.mocked(getActiveOrganizationUser).mockResolvedValue({
+    vi.spyOn(
+      PermissionChecksModule,
+      "getActiveOrganizationUser",
+      // @ts-expect-error - only return relevant data
+    ).mockResolvedValue({
       user_id: "u1",
       role: "member",
-    } as OrganizationMember);
+    });
 
     seedConfig(); // Ensure SaaS mode
 
