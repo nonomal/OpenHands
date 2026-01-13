@@ -1014,7 +1014,6 @@ class TestLiveStatusAppConversationService:
         self.service._finalize_conversation_request.assert_called_once()
 
     @pytest.mark.asyncio
-<<<<<<< HEAD
     async def test_find_running_sandbox_for_user_found(self):
         """Test _find_running_sandbox_for_user when a running sandbox is found."""
         # Arrange
@@ -1106,7 +1105,7 @@ class TestLiveStatusAppConversationService:
             'Error finding running sandbox for user'
             in mock_logger.warning.call_args[0][0]
         )
-=======
+
     async def test_export_conversation_success(self):
         """Test successful download of conversation trajectory."""
         # Arrange
@@ -1839,4 +1838,3 @@ class TestLiveStatusAppConversationService:
         stdio_server = mcp_servers['stdio-server']
         assert stdio_server['command'] == 'npx'
         assert stdio_server['env'] == {'TOKEN': 'value'}
->>>>>>> main
