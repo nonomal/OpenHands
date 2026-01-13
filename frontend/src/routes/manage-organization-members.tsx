@@ -58,9 +58,8 @@ function ManageOrganizationMembers() {
     removeMember({ userId });
   };
 
-  const availableRolesToChangeTo = React.useMemo(
-    () => getAvailableRolesAUserCanAssign(rolePermissions[currentUserRole]),
-    [currentUserRole],
+  const availableRolesToChangeTo = getAvailableRolesAUserCanAssign(
+    rolePermissions[currentUserRole],
   );
 
   const canAssignUserRole = (member: OrganizationMember) =>
