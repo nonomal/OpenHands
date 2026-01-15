@@ -1,0 +1,76 @@
+# LiteLLM Configuration for Local Development
+# Documentation: https://docs.litellm.ai/docs/proxy/configs
+
+general_settings:
+  master_key: sk-local-dev-master-key
+  database_url: postgresql://postgres:postgres@postgres:5432/litellm
+
+model_list:
+  # OpenAI Models
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: gpt-4-turbo
+    litellm_params:
+      model: openai/gpt-4-turbo
+      api_key: os.environ/OPENAI_API_KEY
+
+  # Anthropic Claude Models
+  - model_name: claude-3-5-sonnet-20241022
+    litellm_params:
+      model: anthropic/claude-3-5-sonnet-20241022
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: claude-3-7-sonnet-20250219
+    litellm_params:
+      model: anthropic/claude-3-7-sonnet-20250219
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: claude-sonnet-4-20250514
+    litellm_params:
+      model: anthropic/claude-sonnet-4-20250514
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: claude-opus-4-5-20251101
+    litellm_params:
+      model: anthropic/claude-opus-4-5-20251101
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: claude-3-opus-20240229
+    litellm_params:
+      model: anthropic/claude-3-opus-20240229
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # Google Gemini Models (optional)
+  - model_name: gemini-1.5-pro
+    litellm_params:
+      model: gemini/gemini-1.5-pro
+      api_key: os.environ/GOOGLE_API_KEY
+
+  - model_name: gemini-2.0-flash
+    litellm_params:
+      model: gemini/gemini-2.0-flash
+      api_key: os.environ/GOOGLE_API_KEY
+
+litellm_settings:
+  # Enable request/response logging
+  set_verbose: true
+  # Fallback behavior
+  drop_params: true
+  # Default max tokens if not specified
+  max_tokens: 4096
+
+router_settings:
+  # Enable retries on failure
+  num_retries: 2
+  # Timeout for each request
+  timeout: 600
+  # Routing strategy
+  routing_strategy: simple-shuffle

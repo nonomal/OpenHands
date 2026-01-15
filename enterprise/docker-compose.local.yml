@@ -1,0 +1,107 @@
+version: '3.8'
+
+# Docker Compose for running OpenHands Enterprise locally
+# Usage: docker-compose -f docker-compose.local.yml up -d
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:15
+    container_name: openhands-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: openhands
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and pub/sub
+  redis:
+    image: redis:7-alpine
+    container_name: openhands-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Keycloak for authentication
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1.1
+    container_name: openhands-keycloak
+    environment:
+      # Admin credentials
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # Database configuration (using embedded H2 for simplicity)
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgres
+      # Features
+      KC_FEATURES: token-exchange
+      KC_HEALTH_ENABLED: true
+      KC_METRICS_ENABLED: true
+      # HTTP settings (for local dev, disable HTTPS requirement)
+      KC_HTTP_ENABLED: true
+      KC_HTTP_PORT: 8080
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_PROXY_HEADERS: xforwarded
+    ports:
+      - "8080:8080"
+    command: start-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080;echo -e 'GET /health/ready HTTP/1.1\r\nhost: localhost\r\nConnection: close\r\n\r\n' >&3;if [ $? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # LiteLLM Proxy for LLM routing
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: openhands-litellm
+    environment:
+      # Master key for admin access
+      LITELLM_MASTER_KEY: sk-local-dev-master-key
+      # Database for tracking spend/keys (using same postgres)
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/litellm
+      # General settings
+      LITELLM_LOG: DEBUG
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./litellm-config.yaml:/app/config.yaml
+    command: --config /app/config.yaml --port 4000 --host 0.0.0.0 --detailed_debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: openhands-network
