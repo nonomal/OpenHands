@@ -585,21 +585,23 @@ class TestIsJobRequested:
         mock_view.saas_user_auth = sample_user_auth
         mock_view.job_context = sample_job_context
 
-        mock_repos = [
-            Repository(
-                id='1',
-                full_name='company/repo',
-                stargazers_count=10,
-                git_provider=ProviderType.GITHUB,
-                is_public=True,
-            )
-        ]
-        jira_dc_manager._get_repositories = AsyncMock(return_value=mock_repos)
+        mock_repo = Repository(
+            id='1',
+            full_name='company/repo',
+            stargazers_count=10,
+            git_provider=ProviderType.GITHUB,
+            is_public=True,
+        )
+        mock_provider_handler = MagicMock()
+        jira_dc_manager._get_provider_handler = AsyncMock(return_value=mock_provider_handler)
 
         with patch(
-            'integrations.jira_dc.jira_dc_manager.filter_potential_repos_by_user_msg'
-        ) as mock_filter:
-            mock_filter.return_value = (True, mock_repos)
+            'integrations.jira_dc.jira_dc_manager.verify_inferred_repository'
+        ) as mock_verify:
+            mock_result = MagicMock()
+            mock_result.success = True
+            mock_result.repository = mock_repo
+            mock_verify.return_value = mock_result
 
             message = Message(source=SourceType.JIRA_DC, message={})
             result = await jira_dc_manager.is_job_requested(message, mock_view)
@@ -616,22 +618,19 @@ class TestIsJobRequested:
         mock_view.saas_user_auth = sample_user_auth
         mock_view.job_context = sample_job_context
 
-        mock_repos = [
-            Repository(
-                id='1',
-                full_name='company/repo',
-                stargazers_count=10,
-                git_provider=ProviderType.GITHUB,
-                is_public=True,
-            )
-        ]
-        jira_dc_manager._get_repositories = AsyncMock(return_value=mock_repos)
+        mock_provider_handler = MagicMock()
+        jira_dc_manager._get_provider_handler = AsyncMock(return_value=mock_provider_handler)
         jira_dc_manager._send_repo_selection_comment = AsyncMock()
 
         with patch(
-            'integrations.jira_dc.jira_dc_manager.filter_potential_repos_by_user_msg'
-        ) as mock_filter:
-            mock_filter.return_value = (False, [])
+            'integrations.jira_dc.jira_dc_manager.verify_inferred_repository'
+        ) as mock_verify:
+            mock_result = MagicMock()
+            mock_result.success = False
+            mock_result.failure_reason = 'no_repo_references_in_message'
+            mock_result.inferred_repos = []
+            mock_result.verified_repos = []
+            mock_verify.return_value = mock_result
 
             message = Message(source=SourceType.JIRA_DC, message={})
             result = await jira_dc_manager.is_job_requested(message, mock_view)
@@ -642,12 +641,30 @@ class TestIsJobRequested:
             )
 
     @pytest.mark.asyncio
+    async def test_is_job_requested_no_provider_tokens(
+        self, jira_dc_manager, sample_job_context, sample_user_auth
+    ):
+        """Test job request validation when no provider tokens available."""
+        mock_view = MagicMock(spec=JiraDcNewConversationView)
+        mock_view.saas_user_auth = sample_user_auth
+        mock_view.job_context = sample_job_context
+
+        jira_dc_manager._get_provider_handler = AsyncMock(return_value=None)
+        jira_dc_manager._send_repo_selection_comment = AsyncMock()
+
+        message = Message(source=SourceType.JIRA_DC, message={})
+        result = await jira_dc_manager.is_job_requested(message, mock_view)
+
+        assert result is False
+        jira_dc_manager._send_repo_selection_comment.assert_called_once_with(mock_view)
+
+    @pytest.mark.asyncio
     async def test_is_job_requested_exception(self, jira_dc_manager, sample_user_auth):
         """Test job request validation when an exception occurs."""
         mock_view = MagicMock(spec=JiraDcNewConversationView)
         mock_view.saas_user_auth = sample_user_auth
-        jira_dc_manager._get_repositories = AsyncMock(
-            side_effect=Exception('Repository error')
+        jira_dc_manager._get_provider_handler = AsyncMock(
+            side_effect=Exception('Provider error')
         )
 
         message = Message(source=SourceType.JIRA_DC, message={})

@@ -18,8 +18,8 @@ from integrations.models import JobContext, Message
 from integrations.utils import (
     HOST_URL,
     OPENHANDS_RESOLVER_TEMPLATES_DIR,
-    filter_potential_repos_by_user_msg,
     get_session_expired_message,
+    verify_inferred_repository,
 )
 from jinja2 import Environment, FileSystemLoader
 from server.auth.saas_user_auth import get_user_auth_from_keycloak_id
@@ -31,8 +31,6 @@ from storage.jira_dc_workspace import JiraDcWorkspace
 
 from openhands.core.logger import openhands_logger as logger
 from openhands.integrations.provider import ProviderHandler
-from openhands.integrations.service_types import Repository
-from openhands.server.shared import server_config
 from openhands.server.types import (
     LLMAuthenticationError,
     MissingSettingsError,
@@ -86,22 +84,18 @@ class JiraDcManager(Manager):
         )
         return jira_dc_user, saas_user_auth
 
-    async def _get_repositories(self, user_auth: UserAuth) -> list[Repository]:
-        """Get repositories that the user has access to."""
+    async def _get_provider_handler(self, user_auth: UserAuth) -> ProviderHandler | None:
+        """Get a ProviderHandler for the user."""
         provider_tokens = await user_auth.get_provider_tokens()
         if provider_tokens is None:
-            return []
+            return None
         access_token = await user_auth.get_access_token()
         user_id = await user_auth.get_user_id()
-        client = ProviderHandler(
+        return ProviderHandler(
             provider_tokens=provider_tokens,
             external_auth_token=access_token,
             external_auth_id=user_id,
         )
-        repos: list[Repository] = await client.get_repositories(
-            'pushed', server_config.app_mode, None, None, None, None
-        )
-        return repos
 
     async def validate_request(
         self, request: Request
@@ -146,9 +140,13 @@ class JiraDcManager(Manager):
         digest = hmac.new(webhook_secret.encode(), body, hashlib.sha256).hexdigest()
 
         if hmac.compare_digest(signature, digest):
-            logger.info('[Jira DC] Webhook signature verified successfully')
+            logger.info(
+                '[Jira DC] Webhook signature verified successfully',
+                extra={'payload': payload},
+            )
             return True, signature, payload
 
+        logger.warning('[Jira DC] Webhook signature verification failed')
         return False, None, None
 
     def parse_webhook(self, payload: Dict) -> JobContext | None:
@@ -329,28 +327,51 @@ class JiraDcManager(Manager):
             return True
 
         try:
-            # Get user repositories
-            user_repos: list[Repository] = await self._get_repositories(
+            # Get provider handler for repository verification
+            provider_handler = await self._get_provider_handler(
                 jira_dc_view.saas_user_auth
             )
 
+            if not provider_handler:
+                logger.warning(
+                    '[Jira DC] Job request failed: no provider tokens available',
+                    extra={
+                        'failure_reason': 'no_provider_tokens',
+                        'issue_key': jira_dc_view.job_context.issue_key,
+                    },
+                )
+                await self._send_repo_selection_comment(jira_dc_view)
+                return False
+
             target_str = f'{jira_dc_view.job_context.issue_description}\n{jira_dc_view.job_context.user_msg}'
 
-            # Try to infer repository from issue description
-            match, repos = filter_potential_repos_by_user_msg(target_str, user_repos)
+            # Try to verify repository from issue description
+            result = await verify_inferred_repository(target_str, provider_handler)
 
-            if match:
-                # Found exact repository match
-                jira_dc_view.selected_repo = repos[0].full_name
-                logger.info(f'[Jira DC] Inferred repository: {repos[0].full_name}')
+            if result.success:
+                # Found and verified repository access
+                jira_dc_view.selected_repo = result.repository.full_name
+                logger.info(f'[Jira DC] Verified repository: {result.repository.full_name}')
                 return True
             else:
-                # No clear match - send repository selection comment
+                # Log the specific failure reason
+                logger.warning(
+                    '[Jira DC] Job request failed: repository verification unsuccessful',
+                    extra={
+                        'failure_reason': result.failure_reason,
+                        'issue_key': jira_dc_view.job_context.issue_key,
+                        'inferred_repos': result.inferred_repos,
+                        'verified_repos': [r.full_name for r in result.verified_repos],
+                    },
+                )
                 await self._send_repo_selection_comment(jira_dc_view)
                 return False
 
         except Exception as e:
-            logger.error(f'[Jira DC] Error in is_job_requested: {str(e)}')
+            logger.error(
+                f'[Jira DC] Error in is_job_requested: {str(e)}',
+                extra={'failure_reason': 'exception', 'error': str(e)},
+            )
             return False
 
     async def start_job(self, jira_dc_view: JiraDcViewInterface):

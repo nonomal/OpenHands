@@ -30,6 +30,7 @@ from openhands.storage.data_models.conversation_status import ConversationStatus
 from openhands.utils.async_utils import call_sync_from_async
 
 if TYPE_CHECKING:
+    from openhands.integrations.provider import ProviderHandler
     from openhands.server.conversation_manager.conversation_manager import (
         ConversationManager,
     )
@@ -514,7 +515,11 @@ def infer_repo_from_message(user_msg: str) -> list[str]:
 def filter_potential_repos_by_user_msg(
     user_msg: str, user_repos: list[Repository]
 ) -> tuple[bool, list[Repository]]:
-    """Filter repositories based on user message inference."""
+    """Filter repositories based on user message inference.
+
+    DEPRECATED: Use verify_inferred_repository() instead for more efficient
+    repository verification using the provider API directly.
+    """
     inferred_repos = infer_repo_from_message(user_msg)
     if not inferred_repos:
         return False, user_repos[0:99]
@@ -537,6 +542,87 @@ def filter_potential_repos_by_user_msg(
 
     # Found partial matches
     return False, final_repos[0:99]
+
+
+class RepoVerificationResult:
+    """Result of repository verification with failure reason."""
+
+    def __init__(
+        self,
+        repository: Repository | None = None,
+        failure_reason: str | None = None,
+        inferred_repos: list[str] | None = None,
+        verified_repos: list[Repository] | None = None,
+    ):
+        self.repository = repository
+        self.failure_reason = failure_reason
+        self.inferred_repos = inferred_repos or []
+        self.verified_repos = verified_repos or []
+
+    @property
+    def success(self) -> bool:
+        return self.repository is not None
+
+
+async def verify_inferred_repository(
+    user_msg: str, provider_handler: 'ProviderHandler'
+) -> RepoVerificationResult:
+    """Verify repository access by inferring repo names from user message.
+
+    This function extracts repository references from the user message and
+    verifies access using the provider API directly, rather than listing
+    all user repositories.
+
+    Args:
+        user_msg: The user message containing potential repository references
+        provider_handler: ProviderHandler instance with user's provider tokens
+
+    Returns:
+        RepoVerificationResult with repository if exactly one valid repository
+        is found and accessible, or failure_reason explaining why it failed.
+    """
+    from openhands.integrations.provider import ProviderHandler
+
+    inferred_repos = infer_repo_from_message(user_msg)
+    if not inferred_repos:
+        logger.info('[verify_inferred_repository] No repository references found in message')
+        return RepoVerificationResult(
+            failure_reason='no_repo_references_in_message',
+            inferred_repos=[],
+        )
+
+    # Try to verify each inferred repository
+    verified_repos: list[Repository] = []
+    for repo_name in inferred_repos:
+        try:
+            repo = await provider_handler.verify_repo_provider(repo_name)
+            verified_repos.append(repo)
+            logger.info(f'[verify_inferred_repository] Verified access to repository: {repo_name}')
+        except Exception as e:
+            logger.debug(f'[verify_inferred_repository] Could not verify repository {repo_name}: {e}')
+            continue
+
+    if len(verified_repos) == 0:
+        logger.info('[verify_inferred_repository] No accessible repositories found')
+        return RepoVerificationResult(
+            failure_reason='no_accessible_repos',
+            inferred_repos=inferred_repos,
+            verified_repos=[],
+        )
+    elif len(verified_repos) == 1:
+        logger.info(f'[verify_inferred_repository] Found single accessible repository: {verified_repos[0].full_name}')
+        return RepoVerificationResult(
+            repository=verified_repos[0],
+            inferred_repos=inferred_repos,
+            verified_repos=verified_repos,
+        )
+    else:
+        logger.info(f'[verify_inferred_repository] Multiple repositories found ({len(verified_repos)}), cannot auto-select')
+        return RepoVerificationResult(
+            failure_reason='multiple_repos_found',
+            inferred_repos=inferred_repos,
+            verified_repos=verified_repos,
+        )
 
 
 def markdown_to_jira_markup(markdown_text: str) -> str:
