@@ -29,7 +29,6 @@ import { DEFAULT_SETTINGS } from "#/services/settings";
 import { getProviderId } from "#/utils/map-provider";
 import { DEFAULT_OPENHANDS_MODEL } from "#/utils/verified-models";
 import { useMe } from "#/hooks/query/use-me";
-import { usePermission } from "#/hooks/organizations/use-permissions";
 
 interface OpenHandsApiKeyHelpProps {
   testId: string;
@@ -65,16 +64,16 @@ function OpenHandsApiKeyHelp({ testId }: OpenHandsApiKeyHelpProps) {
 function LlmSettingsScreen() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: user } = useMe();
-  const { hasPermission } = usePermission(user?.role || "member");
 
   const { mutate: saveSettings, isPending } = useSaveSettings();
 
   const { data: resources } = useAIConfigOptions();
   const { data: settings, isLoading, isFetching } = useSettings();
   const { data: config } = useConfig();
+  const { data: me } = useMe();
 
-  const isUserRoleViewOnly = !hasPermission("edit_llm_settings");
+  // Determine if user is read-only (users can only view, owners and admins can edit)
+  const isReadOnly = me?.role !== "owner" && me?.role !== "admin";
 
   const [view, setView] = React.useState<"basic" | "advanced">("basic");
 
@@ -494,266 +493,273 @@ function LlmSettingsScreen() {
   };
 
   return (
-    <fieldset disabled={isUserRoleViewOnly}>
-      <div data-testid="llm-settings-screen" className="h-full relative">
-        <form
-          action={formAction}
-          className="flex flex-col h-full justify-between"
-        >
-          <div className="flex flex-col gap-6">
-            <SettingsSwitch
-              testId="advanced-settings-switch"
-              defaultIsToggled={view === "advanced"}
-              onToggle={handleToggleAdvancedSettings}
-              isToggled={view === "advanced"}
+    <div data-testid="llm-settings-screen" className="h-full relative">
+      <form
+        action={formAction}
+        className="flex flex-col h-full justify-between"
+      >
+        <div className="flex flex-col gap-6">
+          <SettingsSwitch
+            testId="advanced-settings-switch"
+            defaultIsToggled={view === "advanced"}
+            onToggle={handleToggleAdvancedSettings}
+            isToggled={view === "advanced"}
+          >
+            {t(I18nKey.SETTINGS$ADVANCED)}
+          </SettingsSwitch>
+
+          {view === "basic" && (
+            <div
+              data-testid="llm-settings-form-basic"
+              className="flex flex-col gap-6"
             >
-              {t(I18nKey.SETTINGS$ADVANCED)}
-            </SettingsSwitch>
-
-            {view === "basic" && (
-              <div
-                data-testid="llm-settings-form-basic"
-                className="flex flex-col gap-6"
-              >
-                {!isLoading && !isFetching && (
-                  <>
-                    <ModelSelector
-                      models={modelsAndProviders}
-                      currentModel={
-                        settings.llm_model || DEFAULT_OPENHANDS_MODEL
-                      }
-                      onChange={handleModelIsDirty}
-                      onDefaultValuesChanged={onDefaultValuesChanged}
-                      wrapperClassName="!flex-col !gap-6"
-                    />
-                    {(settings.llm_model?.startsWith("openhands/") ||
-                      currentSelectedModel?.startsWith("openhands/")) && (
-                      <OpenHandsApiKeyHelp testId="openhands-api-key-help" />
-                    )}
-                  </>
-                )}
-
-                {!shouldUseOpenHandsKey && (
-                  <>
-                    <SettingsInput
-                      testId="llm-api-key-input"
-                      name="llm-api-key-input"
-                      label={t(I18nKey.SETTINGS_FORM$API_KEY)}
-                      type="password"
-                      className="w-full max-w-[680px]"
-                      placeholder={settings.llm_api_key_set ? "<hidden>" : ""}
-                      onChange={handleApiKeyIsDirty}
-                      startContent={
-                        settings.llm_api_key_set && (
-                          <KeyStatusIcon isSet={settings.llm_api_key_set} />
-                        )
-                      }
-                    />
-
-                    <HelpLink
-                      testId="llm-api-key-help-anchor"
-                      text={t(I18nKey.SETTINGS$DONT_KNOW_API_KEY)}
-                      linkText={t(I18nKey.SETTINGS$CLICK_FOR_INSTRUCTIONS)}
-                      href="https://docs.all-hands.dev/usage/local-setup#getting-an-api-key"
-                    />
-                  </>
-                )}
-              </div>
-            )}
-
-            {view === "advanced" && (
-              <div
-                data-testid="llm-settings-form-advanced"
-                className="flex flex-col gap-6"
-              >
-                <SettingsInput
-                  testId="llm-custom-model-input"
-                  name="llm-custom-model-input"
-                  label={t(I18nKey.SETTINGS$CUSTOM_MODEL)}
-                  defaultValue={settings.llm_model || DEFAULT_OPENHANDS_MODEL}
-                  placeholder={DEFAULT_OPENHANDS_MODEL}
-                  type="text"
-                  className="w-full max-w-[680px]"
-                  onChange={handleCustomModelIsDirty}
-                />
-                {(settings.llm_model?.startsWith("openhands/") ||
-                  currentSelectedModel?.startsWith("openhands/")) && (
-                  <OpenHandsApiKeyHelp testId="openhands-api-key-help-2" />
-                )}
-
-                <SettingsInput
-                  testId="base-url-input"
-                  name="base-url-input"
-                  label={t(I18nKey.SETTINGS$BASE_URL)}
-                  defaultValue={settings.llm_base_url}
-                  placeholder="https://api.openai.com"
-                  type="text"
-                  className="w-full max-w-[680px]"
-                  onChange={handleBaseUrlIsDirty}
-                />
-
-                {!shouldUseOpenHandsKey && (
-                  <>
-                    <SettingsInput
-                      testId="llm-api-key-input"
-                      name="llm-api-key-input"
-                      label={t(I18nKey.SETTINGS_FORM$API_KEY)}
-                      type="password"
-                      className="w-full max-w-[680px]"
-                      placeholder={settings.llm_api_key_set ? "<hidden>" : ""}
-                      onChange={handleApiKeyIsDirty}
-                      startContent={
-                        settings.llm_api_key_set && (
-                          <KeyStatusIcon isSet={settings.llm_api_key_set} />
-                        )
-                      }
-                    />
-                    <HelpLink
-                      testId="llm-api-key-help-anchor-advanced"
-                      text={t(I18nKey.SETTINGS$DONT_KNOW_API_KEY)}
-                      linkText={t(I18nKey.SETTINGS$CLICK_FOR_INSTRUCTIONS)}
-                      href="https://docs.all-hands.dev/usage/local-setup#getting-an-api-key"
-                    />
-                  </>
-                )}
-
-                {config?.APP_MODE !== "saas" && (
-                  <>
-                    <SettingsInput
-                      testId="search-api-key-input"
-                      name="search-api-key-input"
-                      label={t(I18nKey.SETTINGS$SEARCH_API_KEY)}
-                      type="password"
-                      className="w-full max-w-[680px]"
-                      defaultValue={settings.search_api_key || ""}
-                      onChange={handleSearchApiKeyIsDirty}
-                      placeholder={t(I18nKey.API$TVLY_KEY_EXAMPLE)}
-                      startContent={
-                        settings.search_api_key_set && (
-                          <KeyStatusIcon isSet={settings.search_api_key_set} />
-                        )
-                      }
-                    />
-
-                    <HelpLink
-                      testId="search-api-key-help-anchor"
-                      text={t(I18nKey.SETTINGS$SEARCH_API_KEY_OPTIONAL)}
-                      linkText={t(I18nKey.SETTINGS$SEARCH_API_KEY_INSTRUCTIONS)}
-                      href="https://tavily.com/"
-                    />
-
-                    {!isV1Enabled && (
-                      <SettingsDropdownInput
-                        testId="agent-input"
-                        name="agent-input"
-                        label={t(I18nKey.SETTINGS$AGENT)}
-                        items={
-                          resources?.agents.map((agent) => ({
-                            key: agent,
-                            label: agent, // TODO: Add i18n support for agent names
-                          })) || []
-                        }
-                        defaultSelectedKey={settings.agent}
-                        isClearable={false}
-                        onInputChange={handleAgentIsDirty}
-                        wrapperClassName="w-full max-w-[680px]"
-                      />
-                    )}
-                  </>
-                )}
-
-                <div className="w-full max-w-[680px]">
-                  <SettingsInput
-                    testId="condenser-max-size-input"
-                    name="condenser-max-size-input"
-                    type="number"
-                    min={20}
-                    step={1}
-                    label={t(I18nKey.SETTINGS$CONDENSER_MAX_SIZE)}
-                    defaultValue={(
-                      settings.condenser_max_size ??
-                      DEFAULT_SETTINGS.condenser_max_size
-                    )?.toString()}
-                    onChange={(value) => handleCondenserMaxSizeIsDirty(value)}
-                    isDisabled={!settings.enable_default_condenser}
+              {!isLoading && !isFetching && (
+                <>
+                  <ModelSelector
+                    models={modelsAndProviders}
+                    currentModel={settings.llm_model || DEFAULT_OPENHANDS_MODEL}
+                    onChange={handleModelIsDirty}
+                    onDefaultValuesChanged={onDefaultValuesChanged}
+                    wrapperClassName="!flex-col !gap-6"
+                    isDisabled={isReadOnly}
                   />
-                  <p className="text-xs text-tertiary-alt mt-1">
-                    {t(I18nKey.SETTINGS$CONDENSER_MAX_SIZE_TOOLTIP)}
-                  </p>
-                </div>
+                  {(settings.llm_model?.startsWith("openhands/") ||
+                    currentSelectedModel?.startsWith("openhands/")) && (
+                    <OpenHandsApiKeyHelp testId="openhands-api-key-help" />
+                  )}
+                </>
+              )}
 
-                <SettingsSwitch
-                  testId="enable-memory-condenser-switch"
-                  name="enable-memory-condenser-switch"
-                  defaultIsToggled={settings.enable_default_condenser}
-                  onToggle={handleEnableDefaultCondenserIsDirty}
-                >
-                  {t(I18nKey.SETTINGS$ENABLE_MEMORY_CONDENSATION)}
-                </SettingsSwitch>
+              {!shouldUseOpenHandsKey && (
+                <>
+                  <SettingsInput
+                    testId="llm-api-key-input"
+                    name="llm-api-key-input"
+                    label={t(I18nKey.SETTINGS_FORM$API_KEY)}
+                    type="password"
+                    className="w-full max-w-[680px]"
+                    placeholder={settings.llm_api_key_set ? "<hidden>" : ""}
+                    onChange={handleApiKeyIsDirty}
+                    isDisabled={isReadOnly}
+                    startContent={
+                      settings.llm_api_key_set && (
+                        <KeyStatusIcon isSet={settings.llm_api_key_set} />
+                      )
+                    }
+                  />
 
-                {/* Confirmation mode and security analyzer */}
-                <div className="flex items-center gap-2">
-                  <SettingsSwitch
-                    testId="enable-confirmation-mode-switch"
-                    name="enable-confirmation-mode-switch"
-                    onToggle={handleConfirmationModeIsDirty}
-                    defaultIsToggled={settings.confirmation_mode}
-                    isBeta
-                  >
-                    {t(I18nKey.SETTINGS$CONFIRMATION_MODE)}
-                  </SettingsSwitch>
-                  <StyledTooltip
-                    content={t(I18nKey.SETTINGS$CONFIRMATION_MODE_TOOLTIP)}
-                  >
-                    <span className="text-[#9099AC] hover:text-white cursor-help">
-                      <QuestionCircleIcon width={16} height={16} />
-                    </span>
-                  </StyledTooltip>
-                </div>
+                  <HelpLink
+                    testId="llm-api-key-help-anchor"
+                    text={t(I18nKey.SETTINGS$DONT_KNOW_API_KEY)}
+                    linkText={t(I18nKey.SETTINGS$CLICK_FOR_INSTRUCTIONS)}
+                    href="https://docs.all-hands.dev/usage/local-setup#getting-an-api-key"
+                  />
+                </>
+              )}
+            </div>
+          )}
 
-                {confirmationModeEnabled && (
-                  <>
-                    <div className="w-full max-w-[680px]">
-                      <SettingsDropdownInput
-                        testId="security-analyzer-input"
-                        name="security-analyzer-display"
-                        label={t(I18nKey.SETTINGS$SECURITY_ANALYZER)}
-                        items={getSecurityAnalyzerOptions()}
-                        placeholder={t(
-                          I18nKey.SETTINGS$SECURITY_ANALYZER_PLACEHOLDER,
-                        )}
-                        selectedKey={selectedSecurityAnalyzer || "none"}
-                        isClearable={false}
-                        onSelectionChange={(key) => {
-                          const newValue = key?.toString() || "";
-                          setSelectedSecurityAnalyzer(newValue);
-                          handleSecurityAnalyzerIsDirty(newValue);
-                        }}
-                        onInputChange={(value) => {
-                          // Handle when input is cleared
-                          if (!value) {
-                            setSelectedSecurityAnalyzer("");
-                            handleSecurityAnalyzerIsDirty("");
-                          }
-                        }}
-                        wrapperClassName="w-full"
-                      />
-                      {/* Hidden input to store the actual key value for form submission */}
-                      <input
-                        type="hidden"
-                        name="security-analyzer-input"
-                        value={selectedSecurityAnalyzer || ""}
-                      />
-                    </div>
-                    <p className="text-xs text-tertiary-alt max-w-[680px]">
-                      {t(I18nKey.SETTINGS$SECURITY_ANALYZER_DESCRIPTION)}
-                    </p>
-                  </>
-                )}
+          {view === "advanced" && (
+            <div
+              data-testid="llm-settings-form-advanced"
+              className="flex flex-col gap-6"
+            >
+              <SettingsInput
+                testId="llm-custom-model-input"
+                name="llm-custom-model-input"
+                label={t(I18nKey.SETTINGS$CUSTOM_MODEL)}
+                defaultValue={settings.llm_model || DEFAULT_OPENHANDS_MODEL}
+                placeholder={DEFAULT_OPENHANDS_MODEL}
+                type="text"
+                className="w-full max-w-[680px]"
+                onChange={handleCustomModelIsDirty}
+                isDisabled={isReadOnly}
+              />
+              {(settings.llm_model?.startsWith("openhands/") ||
+                currentSelectedModel?.startsWith("openhands/")) && (
+                <OpenHandsApiKeyHelp testId="openhands-api-key-help-2" />
+              )}
+
+              <SettingsInput
+                testId="base-url-input"
+                name="base-url-input"
+                label={t(I18nKey.SETTINGS$BASE_URL)}
+                defaultValue={settings.llm_base_url}
+                placeholder="https://api.openai.com"
+                type="text"
+                className="w-full max-w-[680px]"
+                onChange={handleBaseUrlIsDirty}
+                isDisabled={isReadOnly}
+              />
+
+              {!shouldUseOpenHandsKey && (
+                <>
+                  <SettingsInput
+                    testId="llm-api-key-input"
+                    name="llm-api-key-input"
+                    label={t(I18nKey.SETTINGS_FORM$API_KEY)}
+                    type="password"
+                    className="w-full max-w-[680px]"
+                    placeholder={settings.llm_api_key_set ? "<hidden>" : ""}
+                    onChange={handleApiKeyIsDirty}
+                    isDisabled={isReadOnly}
+                    startContent={
+                      settings.llm_api_key_set && (
+                        <KeyStatusIcon isSet={settings.llm_api_key_set} />
+                      )
+                    }
+                  />
+                  <HelpLink
+                    testId="llm-api-key-help-anchor-advanced"
+                    text={t(I18nKey.SETTINGS$DONT_KNOW_API_KEY)}
+                    linkText={t(I18nKey.SETTINGS$CLICK_FOR_INSTRUCTIONS)}
+                    href="https://docs.all-hands.dev/usage/local-setup#getting-an-api-key"
+                  />
+                </>
+              )}
+
+              {config?.APP_MODE !== "saas" && (
+                <>
+                  <SettingsInput
+                    testId="search-api-key-input"
+                    name="search-api-key-input"
+                    label={t(I18nKey.SETTINGS$SEARCH_API_KEY)}
+                    type="password"
+                    className="w-full max-w-[680px]"
+                    defaultValue={settings.search_api_key || ""}
+                    onChange={handleSearchApiKeyIsDirty}
+                    placeholder={t(I18nKey.API$TVLY_KEY_EXAMPLE)}
+                    startContent={
+                      settings.search_api_key_set && (
+                        <KeyStatusIcon isSet={settings.search_api_key_set} />
+                      )
+                    }
+                  />
+
+                  <HelpLink
+                    testId="search-api-key-help-anchor"
+                    text={t(I18nKey.SETTINGS$SEARCH_API_KEY_OPTIONAL)}
+                    linkText={t(I18nKey.SETTINGS$SEARCH_API_KEY_INSTRUCTIONS)}
+                    href="https://tavily.com/"
+                  />
+
+                  {!isV1Enabled && (
+                    <SettingsDropdownInput
+                      testId="agent-input"
+                      name="agent-input"
+                      label={t(I18nKey.SETTINGS$AGENT)}
+                      items={
+                        resources?.agents.map((agent) => ({
+                          key: agent,
+                          label: agent, // TODO: Add i18n support for agent names
+                        })) || []
+                      }
+                      defaultSelectedKey={settings.agent}
+                      isClearable={false}
+                      onInputChange={handleAgentIsDirty}
+                      isDisabled={isReadOnly}
+                      wrapperClassName="w-full max-w-[680px]"
+                    />
+                  )}
+                </>
+              )}
+
+              <div className="w-full max-w-[680px]">
+                <SettingsInput
+                  testId="condenser-max-size-input"
+                  name="condenser-max-size-input"
+                  type="number"
+                  min={20}
+                  step={1}
+                  label={t(I18nKey.SETTINGS$CONDENSER_MAX_SIZE)}
+                  defaultValue={(
+                    settings.condenser_max_size ??
+                    DEFAULT_SETTINGS.condenser_max_size
+                  )?.toString()}
+                  onChange={(value) => handleCondenserMaxSizeIsDirty(value)}
+                  isDisabled={isReadOnly || !settings.enable_default_condenser}
+                />
+                <p className="text-xs text-tertiary-alt mt-1">
+                  {t(I18nKey.SETTINGS$CONDENSER_MAX_SIZE_TOOLTIP)}
+                </p>
               </div>
-            )}
-          </div>
 
+              <SettingsSwitch
+                testId="enable-memory-condenser-switch"
+                name="enable-memory-condenser-switch"
+                defaultIsToggled={settings.enable_default_condenser}
+                onToggle={handleEnableDefaultCondenserIsDirty}
+                isDisabled={isReadOnly}
+              >
+                {t(I18nKey.SETTINGS$ENABLE_MEMORY_CONDENSATION)}
+              </SettingsSwitch>
+
+              {/* Confirmation mode and security analyzer */}
+              <div className="flex items-center gap-2">
+                <SettingsSwitch
+                  testId="enable-confirmation-mode-switch"
+                  name="enable-confirmation-mode-switch"
+                  onToggle={handleConfirmationModeIsDirty}
+                  defaultIsToggled={settings.confirmation_mode}
+                  isBeta
+                  isDisabled={isReadOnly}
+                >
+                  {t(I18nKey.SETTINGS$CONFIRMATION_MODE)}
+                </SettingsSwitch>
+                <StyledTooltip
+                  content={t(I18nKey.SETTINGS$CONFIRMATION_MODE_TOOLTIP)}
+                >
+                  <span className="text-[#9099AC] hover:text-white cursor-help">
+                    <QuestionCircleIcon width={16} height={16} />
+                  </span>
+                </StyledTooltip>
+              </div>
+
+              {confirmationModeEnabled && (
+                <>
+                  <div className="w-full max-w-[680px]">
+                    <SettingsDropdownInput
+                      testId="security-analyzer-input"
+                      name="security-analyzer-display"
+                      label={t(I18nKey.SETTINGS$SECURITY_ANALYZER)}
+                      items={getSecurityAnalyzerOptions()}
+                      placeholder={t(
+                        I18nKey.SETTINGS$SECURITY_ANALYZER_PLACEHOLDER,
+                      )}
+                      selectedKey={selectedSecurityAnalyzer || "none"}
+                      isClearable={false}
+                      isDisabled={isReadOnly}
+                      onSelectionChange={(key) => {
+                        const newValue = key?.toString() || "";
+                        setSelectedSecurityAnalyzer(newValue);
+                        handleSecurityAnalyzerIsDirty(newValue);
+                      }}
+                      onInputChange={(value) => {
+                        // Handle when input is cleared
+                        if (!value) {
+                          setSelectedSecurityAnalyzer("");
+                          handleSecurityAnalyzerIsDirty("");
+                        }
+                      }}
+                      wrapperClassName="w-full"
+                    />
+                    {/* Hidden input to store the actual key value for form submission */}
+                    <input
+                      type="hidden"
+                      name="security-analyzer-input"
+                      value={selectedSecurityAnalyzer || ""}
+                    />
+                  </div>
+                  <p className="text-xs text-tertiary-alt max-w-[680px]">
+                    {t(I18nKey.SETTINGS$SECURITY_ANALYZER_DESCRIPTION)}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {!isReadOnly && (
           <div className="flex gap-6 p-6 justify-end">
             <BrandButton
               testId="submit-button"
@@ -765,9 +771,9 @@ function LlmSettingsScreen() {
               {isPending && t("SETTINGS$SAVING")}
             </BrandButton>
           </div>
-        </form>
-      </div>
-    </fieldset>
+        )}
+      </form>
+    </div>
   );
 }
 
