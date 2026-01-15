@@ -8,13 +8,14 @@ from resend.exceptions import ResendError
 from tenacity import RetryError
 
 # Set required environment variables before importing the module
+# that reads them at import time
 os.environ['RESEND_API_KEY'] = 'test_api_key'
 os.environ['RESEND_AUDIENCE_ID'] = 'test_audience_id'
 os.environ['KEYCLOAK_SERVER_URL'] = 'http://localhost:8080'
 os.environ['KEYCLOAK_REALM_NAME'] = 'test_realm'
 os.environ['KEYCLOAK_ADMIN_PASSWORD'] = 'test_password'
 
-from enterprise.sync.resend_keycloak import (
+from enterprise.sync.resend_keycloak import (  # noqa: E402
     add_contact_to_resend,
     send_welcome_email,
 )
