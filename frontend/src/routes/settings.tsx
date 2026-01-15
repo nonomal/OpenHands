@@ -9,7 +9,6 @@ import { SettingsLayout } from "#/components/features/settings/settings-layout";
 import { Typography } from "#/ui/typography";
 import { useSettingsNavItems } from "#/hooks/use-settings-nav-items";
 import { getActiveOrganizationUser } from "#/utils/org/permission-checks";
-import { OrganizationUserRole } from "#/types/org";
 
 const SAAS_ONLY_PATHS = [
   "/settings/user",
@@ -24,7 +23,7 @@ export const clientLoader = async ({ request }: Route.ClientLoaderArgs) => {
   const url = new URL(request.url);
   const { pathname } = url;
   const user = await getActiveOrganizationUser();
-  const userRole: OrganizationUserRole = !user ? "member" : user?.role;
+  const userRole = user?.role || "member";
 
   let config = queryClient.getQueryData<GetConfigResponse>(["config"]);
   if (!config) {

@@ -2,7 +2,7 @@ import { organizationService } from "#/api/organization-service/organization-ser
 import { getSelectedOrganizationIdFromStore } from "#/stores/selected-organization-store";
 import { OrganizationMember, OrganizationUserRole } from "#/types/org";
 import { getMeFromQueryClient } from "../query-client-getters";
-import { Permission } from "./permissions";
+import { PermissionKey } from "./permissions";
 import { queryClient } from "#/query-client-config";
 
 /**
@@ -29,19 +29,17 @@ export const getActiveOrganizationUser = async (): Promise<
  * @returns an array of roles (strings) the user can change other users to
  */
 export const getAvailableRolesAUserCanAssign = (
-  userPermissions: Permission[],
+  userPermissions: PermissionKey[],
 ): OrganizationUserRole[] => {
-  const roleToPermissionMap: Record<OrganizationUserRole, Permission> = {
-    owner: "change_user_role:owner",
-    admin: "change_user_role:admin",
-    member: "change_user_role:member",
-  };
-
-  return (
-    Object.entries(roleToPermissionMap) as [OrganizationUserRole, Permission][]
-  )
-    .filter((roleToPermissionMap_keyValuePairs) =>
-      userPermissions.includes(roleToPermissionMap_keyValuePairs[1]),
-    )
-    .map(([role]) => role);
+  const availableRoles: OrganizationUserRole[] = [];
+  if (userPermissions.includes("change_user_role:member")) {
+    availableRoles.push("member");
+  }
+  if (userPermissions.includes("change_user_role:admin")) {
+    availableRoles.push("admin");
+  }
+  if (userPermissions.includes("change_user_role:owner")) {
+    availableRoles.push("owner");
+  }
+  return availableRoles;
 };

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { usePermission } from "#/hooks/organizations/use-permissions";
-import { rolePermissions, Permission } from "#/utils/org/permissions";
+import { rolePermissions } from "#/utils/org/permissions";
 import { OrganizationUserRole } from "#/types/org";
 
 describe("usePermission", () => {
@@ -32,7 +32,7 @@ describe("usePermission", () => {
     });
   });
 
-  describe("change_user_role permission behavior (legacy parity)", () => {
+  describe("change_user_role permission behavior", () => {
     const run = (
       activeUserRole: OrganizationUserRole,
       targetUserId: string,

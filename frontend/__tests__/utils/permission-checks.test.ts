@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getAvailableRolesAUserCanAssign } from "#/utils/org/permission-checks";
-import { Permission } from "#/utils/org/permissions";
+import { PermissionKey } from "#/utils/org/permissions";
 
 describe("getAvailableRolesAUserCanAssign", () => {
     it("returns empty array if user has no permissions", () => {
@@ -9,7 +9,7 @@ describe("getAvailableRolesAUserCanAssign", () => {
     });
 
     it("returns only roles the user has permission for", () => {
-        const userPermissions: Permission[] = [
+        const userPermissions: PermissionKey[] = [
             "change_user_role:member",
             "change_user_role:admin",
         ];
@@ -18,7 +18,7 @@ describe("getAvailableRolesAUserCanAssign", () => {
     });
 
     it("returns all roles if user has all permissions", () => {
-        const allPermissions: Permission[] = [
+        const allPermissions: PermissionKey[] = [
             "change_user_role:member",
             "change_user_role:admin",
             "change_user_role:owner",

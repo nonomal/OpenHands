@@ -1,5 +1,7 @@
+import { OrganizationUserRole } from "#/types/org";
+
 /* PERMISSION TYPES */
-type UserRoleChangePermissionKey = "change_user_role";
+type UserRoleChangePermissionKey = `change_user_role:${OrganizationUserRole}`;
 type InviteUserToOrganizationKey = "invite_user_to_organization";
 
 type ChangeOrganizationNamePermission = "change_organization_name";
@@ -16,31 +18,24 @@ type ManageAPIKeysPermission = "manage_api_keys";
 type ViewLLMSettingsPermission = "view_llm_settings";
 type EditLLMSettingsPermission = "edit_llm_settings";
 
-type MemberPermission =
+// Union of all permission keys
+export type PermissionKey =
+  | UserRoleChangePermissionKey
+  | InviteUserToOrganizationKey
+  | ChangeOrganizationNamePermission
+  | DeleteOrganizationPermission
+  | AddCreditsPermission
+  | ViewBillingPermission
   | ManageSecretsPermission
   | ManageMCPPermission
   | ManageIntegrationsPermission
   | ManageApplicationSettingsPermission
   | ManageAPIKeysPermission
-  | ViewLLMSettingsPermission;
-
-type AdminPermission =
-  | MemberPermission
-  | EditLLMSettingsPermission
-  | ViewBillingPermission
-  | AddCreditsPermission
-  | InviteUserToOrganizationKey
-  | `${UserRoleChangePermissionKey}:member`
-  | `${UserRoleChangePermissionKey}:admin`;
-
-type OwnerPermission =
-  | AdminPermission
-  | ChangeOrganizationNamePermission
-  | DeleteOrganizationPermission
-  | `${UserRoleChangePermissionKey}:owner`;
+  | ViewLLMSettingsPermission
+  | EditLLMSettingsPermission;
 
 /* PERMISSION ARRAYS */
-const memberPerms: MemberPermission[] = [
+const memberPerms: PermissionKey[] = [
   "manage_secrets",
   "manage_mcp",
   "manage_integrations",
@@ -49,7 +44,7 @@ const memberPerms: MemberPermission[] = [
   "view_llm_settings",
 ];
 
-const adminPerms: AdminPermission[] = [
+const adminPerms: PermissionKey[] = [
   // member perms
   "manage_secrets",
   "manage_mcp",
@@ -67,7 +62,7 @@ const adminPerms: AdminPermission[] = [
   "change_user_role:admin",
 ];
 
-const ownerPerms: OwnerPermission[] = [
+const ownerPerms: PermissionKey[] = [
   // admin perms
   "manage_secrets",
   "manage_mcp",
@@ -88,15 +83,7 @@ const ownerPerms: OwnerPermission[] = [
   "change_user_role:owner",
 ];
 
-export type RolePermissionMap = {
-  owner: OwnerPermission[];
-  admin: AdminPermission[];
-  member: MemberPermission[];
-};
-
-export type Permission = RolePermissionMap[keyof RolePermissionMap][number];
-
-export const rolePermissions: RolePermissionMap = {
+export const rolePermissions: Record<OrganizationUserRole, PermissionKey[]> = {
   owner: ownerPerms,
   admin: adminPerms,
   member: memberPerms,

@@ -1,11 +1,11 @@
-import { screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRoutesStub } from "react-router";
 import { renderWithProviders } from "test-utils";
 import SettingsScreen from "#/routes/settings";
 import { PaymentForm } from "#/components/features/payment/payment-form";
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 let queryClient: QueryClient;
 
@@ -139,13 +139,13 @@ describe("Settings Billing", () => {
   ]);
 
   const renderSettingsScreen = () =>
-    (renderWithProviders as unknown as (
-      ui: React.ReactElement,
-      options: { queryClient: QueryClient }
-    ) => ReturnType<typeof renderWithProviders>)(
-      <RoutesStub initialEntries={["/settings"]} />,
-      { queryClient }
-    );
+    render(<RoutesStub initialEntries={["/settings"]} />, {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      ),
+    });
 
   afterEach(() => vi.clearAllMocks());
 

@@ -1,16 +1,16 @@
 import { useMemo } from "react";
 import { OrganizationUserRole } from "#/types/org";
-import { rolePermissions, Permission } from "#/utils/org/permissions";
+import { rolePermissions, PermissionKey } from "#/utils/org/permissions";
 
 export const usePermission = (role: OrganizationUserRole) => {
   /* Memoize permissions for the role */
-  const currentPermissions = useMemo<Permission[]>(
-    () => rolePermissions[role] as Permission[],
+  const currentPermissions = useMemo<PermissionKey[]>(
+    () => rolePermissions[role],
     [role],
   );
 
   /* Check if the user has a specific permission */
-  const hasPermission = (permission: Permission): boolean =>
+  const hasPermission = (permission: PermissionKey): boolean =>
     currentPermissions.includes(permission);
 
   return { hasPermission };
