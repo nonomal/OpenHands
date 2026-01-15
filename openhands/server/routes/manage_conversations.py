@@ -636,8 +636,8 @@ async def get_prompt(
     """Generate a remember prompt from conversation events.
 
     This endpoint is part of the legacy V0 API and will be removed in a future release.
-    V1 conversations use the skills system for memory management via
-    ``GET /api/v1/app-conversations/{conversation_id}/skills``.
+    There is no direct V1 equivalent as memory management is handled differently in V1
+    through the skills system (``GET /api/v1/app-conversations/{conversation_id}/skills``).
     """
     # get event store for the conversation
     event_store = EventStore(
@@ -1211,7 +1211,8 @@ def add_experiment_config_for_conversation(
     """Add experiment configuration for a conversation.
 
     This endpoint is part of the legacy V0 API and will be removed in a future release.
-    V1 conversations manage experiment configurations through the sandbox specification system.
+    There is no direct V1 equivalent as experiment configurations are applied internally
+    during conversation startup and do not require a separate API call.
     """
     exp_config_filepath = get_experiment_config_filename(conversation_id)
     exists = False
