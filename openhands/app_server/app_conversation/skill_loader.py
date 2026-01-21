@@ -30,6 +30,20 @@ GLOBAL_SKILLS_DIR = os.path.join(
 WORK_HOSTS_SKILL = """The user has access to the following hosts for accessing a web application,
 each of which has a corresponding port:"""
 
+WORK_HOSTS_SKILL_FOOTER = """
+When starting a web server, use the corresponding ports via environment variables:
+- $WORKER_1 for the first port
+- $WORKER_2 for the second port
+
+**CRITICAL: You MUST enable CORS and bind to 0.0.0.0.** Without CORS headers, the App tab cannot detect your server and will show an empty state.
+
+Example (Flask):
+```python
+from flask_cors import CORS
+CORS(app)
+app.run(host='0.0.0.0', port=int(os.environ.get('WORKER_1', 12000)))
+```"""
+
 
 def _find_and_load_global_skill_files(skill_dir: Path) -> list[Skill]:
     """Find and load all .md files from the global skills directory.
@@ -73,6 +87,7 @@ def load_sandbox_skills(sandbox: SandboxInfo) -> list[Skill]:
     content_list = [WORK_HOSTS_SKILL]
     for url in urls:
         content_list.append(f'* {url.url} (port {url.port})')
+    content_list.append(WORK_HOSTS_SKILL_FOOTER)
     content = '\n'.join(content_list)
     return [Skill(name='work_hosts', content=content, trigger=None)]
 
@@ -134,7 +149,9 @@ async def _is_gitlab_repository(repo_name: str, user_context: UserContext) -> bo
     """
     try:
         provider_handler = await user_context.get_provider_handler()  # type: ignore[attr-defined]
-        repository = await provider_handler.verify_repo_provider(repo_name)
+        repository = await provider_handler.verify_repo_provider(
+            repo_name, is_optional=True
+        )
         return repository.git_provider == ProviderType.GITLAB
     except Exception:
         # If we can't determine the provider, assume it's not GitLab
@@ -156,7 +173,9 @@ async def _is_azure_devops_repository(
     """
     try:
         provider_handler = await user_context.get_provider_handler()  # type: ignore[attr-defined]
-        repository = await provider_handler.verify_repo_provider(repo_name)
+        repository = await provider_handler.verify_repo_provider(
+            repo_name, is_optional=True
+        )
         return repository.git_provider == ProviderType.AZURE_DEVOPS
     except Exception:
         # If we can't determine the provider, assume it's not Azure DevOps
@@ -446,7 +465,9 @@ async def _get_org_repository_url(
         Authenticated Git URL if successful, None otherwise
     """
     try:
-        remote_url = await user_context.get_authenticated_git_url(org_openhands_repo)
+        remote_url = await user_context.get_authenticated_git_url(
+            org_openhands_repo, is_optional=True
+        )
         return remote_url
     except AuthenticationError as e:
         _logger.debug(

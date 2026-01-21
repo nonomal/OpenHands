@@ -702,7 +702,9 @@ class TestIsGitlabRepository:
 
         # Assert
         assert result is True
-        mock_provider_handler.verify_repo_provider.assert_called_once_with('owner/repo')
+        mock_provider_handler.verify_repo_provider.assert_called_once_with(
+            'owner/repo', is_optional=True
+        )
 
     @pytest.mark.asyncio
     async def test_is_gitlab_repository_false(self):
@@ -759,7 +761,7 @@ class TestIsAzureDevOpsRepository:
         # Assert
         assert result is True
         mock_provider_handler.verify_repo_provider.assert_called_once_with(
-            'org/project/repo'
+            'org/project/repo', is_optional=True
         )
 
     @pytest.mark.asyncio
@@ -914,7 +916,7 @@ class TestGetOrgRepositoryUrl:
         # Assert
         assert result == expected_url
         mock_user_context.get_authenticated_git_url.assert_called_once_with(
-            'owner/.openhands'
+            'owner/.openhands', is_optional=True
         )
 
     @pytest.mark.asyncio

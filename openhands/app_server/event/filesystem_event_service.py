@@ -22,7 +22,7 @@ class FilesystemEventService(EventServiceBase):
 
     def _load_event(self, path: Path) -> Event | None:
         try:
-            content = path.read_text(str(path))
+            content = path.read_text()
             content = Event.model_validate_json(content)
             return content
         except Exception:
@@ -35,7 +35,7 @@ class FilesystemEventService(EventServiceBase):
         path.write_text(content)
 
     def _search_paths(self, prefix: Path, page_id: str | None = None) -> list[Path]:
-        search_path = f'{prefix}*'
+        search_path = f'{prefix}/*'
         files = glob.glob(str(search_path))
         paths = [Path(file) for file in files]
         return paths

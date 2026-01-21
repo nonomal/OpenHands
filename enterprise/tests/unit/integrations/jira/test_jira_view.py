@@ -2,17 +2,15 @@
 Tests for Jira view classes and factory.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from integrations.jira.jira_types import StartingConvoException
 from integrations.jira.jira_view import (
-    JiraExistingConversationView,
     JiraFactory,
     JiraNewConversationView,
 )
-
-from openhands.core.schema.agent import AgentState
+from integrations.models import Message, SourceType
 
 
 class TestJiraNewConversationView:
@@ -80,161 +78,8 @@ class TestJiraNewConversationView:
         assert 'conv-123' in response
 
 
-class TestJiraExistingConversationView:
-    """Tests for JiraExistingConversationView"""
-
-    def test_get_instructions(self, existing_conversation_view, mock_jinja_env):
-        """Test _get_instructions method"""
-        instructions, user_msg = existing_conversation_view._get_instructions(
-            mock_jinja_env
-        )
-
-        assert instructions == ''
-        assert 'TEST-123' in user_msg
-        assert 'Test Issue' in user_msg
-        assert 'Fix this bug @openhands' in user_msg
-
-    @patch('integrations.jira.jira_view.ConversationStoreImpl.get_instance')
-    @patch('integrations.jira.jira_view.setup_init_conversation_settings')
-    @patch('integrations.jira.jira_view.conversation_manager')
-    @patch('integrations.jira.jira_view.get_final_agent_observation')
-    async def test_create_or_update_conversation_success(
-        self,
-        mock_get_observation,
-        mock_conversation_manager,
-        mock_setup_init,
-        mock_store_impl,
-        existing_conversation_view,
-        mock_jinja_env,
-        mock_conversation_store,
-        mock_conversation_init_data,
-        mock_agent_loop_info,
-    ):
-        """Test successful existing conversation update"""
-        # Setup mocks
-        mock_store_impl.return_value = mock_conversation_store
-        mock_setup_init.return_value = mock_conversation_init_data
-        mock_conversation_manager.maybe_start_agent_loop = AsyncMock(
-            return_value=mock_agent_loop_info
-        )
-        mock_conversation_manager.send_event_to_conversation = AsyncMock()
-
-        # Mock agent observation with RUNNING state
-        mock_observation = MagicMock()
-        mock_observation.agent_state = AgentState.RUNNING
-        mock_get_observation.return_value = [mock_observation]
-
-        result = await existing_conversation_view.create_or_update_conversation(
-            mock_jinja_env
-        )
-
-        assert result == 'conv-123'
-        mock_conversation_manager.send_event_to_conversation.assert_called_once()
-
-    @patch('integrations.jira.jira_view.ConversationStoreImpl.get_instance')
-    async def test_create_or_update_conversation_no_metadata(
-        self, mock_store_impl, existing_conversation_view, mock_jinja_env
-    ):
-        """Test conversation update with no metadata"""
-        mock_store = AsyncMock()
-        mock_store.get_metadata.side_effect = FileNotFoundError(
-            'No such file or directory'
-        )
-        mock_store_impl.return_value = mock_store
-
-        with pytest.raises(
-            StartingConvoException, match='Conversation no longer exists'
-        ):
-            await existing_conversation_view.create_or_update_conversation(
-                mock_jinja_env
-            )
-
-    @patch('integrations.jira.jira_view.ConversationStoreImpl.get_instance')
-    @patch('integrations.jira.jira_view.setup_init_conversation_settings')
-    @patch('integrations.jira.jira_view.conversation_manager')
-    @patch('integrations.jira.jira_view.get_final_agent_observation')
-    async def test_create_or_update_conversation_loading_state(
-        self,
-        mock_get_observation,
-        mock_conversation_manager,
-        mock_setup_init,
-        mock_store_impl,
-        existing_conversation_view,
-        mock_jinja_env,
-        mock_conversation_store,
-        mock_conversation_init_data,
-        mock_agent_loop_info,
-    ):
-        """Test conversation update with loading state"""
-        mock_store_impl.return_value = mock_conversation_store
-        mock_setup_init.return_value = mock_conversation_init_data
-        mock_conversation_manager.maybe_start_agent_loop = AsyncMock(
-            return_value=mock_agent_loop_info
-        )
-
-        # Mock agent observation with LOADING state
-        mock_observation = MagicMock()
-        mock_observation.agent_state = AgentState.LOADING
-        mock_get_observation.return_value = [mock_observation]
-
-        with pytest.raises(
-            StartingConvoException, match='Conversation is still starting'
-        ):
-            await existing_conversation_view.create_or_update_conversation(
-                mock_jinja_env
-            )
-
-    @patch('integrations.jira.jira_view.ConversationStoreImpl.get_instance')
-    async def test_create_or_update_conversation_failure(
-        self, mock_store_impl, existing_conversation_view, mock_jinja_env
-    ):
-        """Test conversation update failure"""
-        mock_store_impl.side_effect = Exception('Store error')
-
-        with pytest.raises(
-            StartingConvoException, match='Failed to create conversation'
-        ):
-            await existing_conversation_view.create_or_update_conversation(
-                mock_jinja_env
-            )
-
-    def test_get_response_msg(self, existing_conversation_view):
-        """Test get_response_msg method"""
-        response = existing_conversation_view.get_response_msg()
-
-        assert "I'm on it!" in response
-        assert 'Test User' in response
-        assert 'continue tracking my progress here' in response
-        assert 'conv-123' in response
-
-
 class TestJiraFactory:
     """Tests for JiraFactory"""
-
-    @patch('integrations.jira.jira_view.integration_store')
-    async def test_create_jira_view_from_payload_existing_conversation(
-        self,
-        mock_store,
-        sample_job_context,
-        sample_user_auth,
-        sample_jira_user,
-        sample_jira_workspace,
-        jira_conversation,
-    ):
-        """Test factory creating existing conversation view"""
-        mock_store.get_user_conversations_by_issue_id = AsyncMock(
-            return_value=jira_conversation
-        )
-
-        view = await JiraFactory.create_jira_view_from_payload(
-            sample_job_context,
-            sample_user_auth,
-            sample_jira_user,
-            sample_jira_workspace,
-        )
-
-        assert isinstance(view, JiraExistingConversationView)
-        assert view.conversation_id == 'conv-123'
 
     @patch('integrations.jira.jira_view.integration_store')
     async def test_create_jira_view_from_payload_new_conversation(
@@ -341,83 +186,364 @@ class TestJiraViewEdgeCases:
         ):
             await new_conversation_view.create_or_update_conversation(mock_jinja_env)
 
-    @patch('integrations.jira.jira_view.ConversationStoreImpl.get_instance')
-    @patch('integrations.jira.jira_view.setup_init_conversation_settings')
-    @patch('integrations.jira.jira_view.conversation_manager')
-    @patch('integrations.jira.jira_view.get_final_agent_observation')
-    async def test_existing_conversation_empty_observations(
-        self,
-        mock_get_observation,
-        mock_conversation_manager,
-        mock_setup_init,
-        mock_store_impl,
-        existing_conversation_view,
-        mock_jinja_env,
-        mock_conversation_store,
-        mock_conversation_init_data,
-        mock_agent_loop_info,
-    ):
-        """Test existing conversation with empty observations"""
-        mock_store_impl.return_value = mock_conversation_store
-        mock_setup_init.return_value = mock_conversation_init_data
-        mock_conversation_manager.maybe_start_agent_loop = AsyncMock(
-            return_value=mock_agent_loop_info
-        )
-        mock_get_observation.return_value = []  # Empty observations
-
-        with pytest.raises(
-            StartingConvoException, match='Conversation is still starting'
-        ):
-            await existing_conversation_view.create_or_update_conversation(
-                mock_jinja_env
-            )
-
     def test_new_conversation_view_attributes(self, new_conversation_view):
         """Test new conversation view attribute access"""
         assert new_conversation_view.job_context.issue_key == 'TEST-123'
         assert new_conversation_view.selected_repo == 'test/repo1'
         assert new_conversation_view.conversation_id == 'conv-123'
 
-    def test_existing_conversation_view_attributes(self, existing_conversation_view):
-        """Test existing conversation view attribute access"""
-        assert existing_conversation_view.job_context.issue_key == 'TEST-123'
-        assert existing_conversation_view.selected_repo == 'test/repo1'
-        assert existing_conversation_view.conversation_id == 'conv-123'
 
-    @patch('integrations.jira.jira_view.ConversationStoreImpl.get_instance')
-    @patch('integrations.jira.jira_view.setup_init_conversation_settings')
-    @patch('integrations.jira.jira_view.conversation_manager')
-    @patch('integrations.jira.jira_view.get_final_agent_observation')
-    async def test_existing_conversation_message_send_failure(
-        self,
-        mock_get_observation,
-        mock_conversation_manager,
-        mock_setup_init,
-        mock_store_impl,
-        existing_conversation_view,
-        mock_jinja_env,
-        mock_conversation_store,
-        mock_conversation_init_data,
-        mock_agent_loop_info,
-    ):
-        """Test existing conversation when message sending fails"""
-        mock_store_impl.return_value = mock_conversation_store
-        mock_setup_init.return_value = mock_conversation_init_data
-        mock_conversation_manager.maybe_start_agent_loop = AsyncMock(
-            return_value=mock_agent_loop_info
-        )
-        mock_conversation_manager.send_event_to_conversation = AsyncMock(
-            side_effect=Exception('Send error')
-        )
+class TestJiraFactoryIsLabeledTicket:
+    """Parameterized tests for JiraFactory.is_labeled_ticket method."""
 
-        # Mock agent observation with RUNNING state
-        mock_observation = MagicMock()
-        mock_observation.agent_state = AgentState.RUNNING
-        mock_get_observation.return_value = [mock_observation]
+    @pytest.mark.parametrize(
+        'payload,expected',
+        [
+            pytest.param(
+                {
+                    'webhookEvent': 'jira:issue_updated',
+                    'changelog': {
+                        'items': [{'field': 'labels', 'toString': 'openhands'}]
+                    },
+                },
+                True,
+                id='issue_updated_with_openhands_label',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'jira:issue_updated',
+                    'changelog': {
+                        'items': [
+                            {'field': 'labels', 'toString': 'bug'},
+                            {'field': 'labels', 'toString': 'openhands'},
+                        ]
+                    },
+                },
+                True,
+                id='issue_updated_with_multiple_labels_including_openhands',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'jira:issue_updated',
+                    'changelog': {
+                        'items': [{'field': 'labels', 'toString': 'bug,urgent'}]
+                    },
+                },
+                False,
+                id='issue_updated_without_openhands_label',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'jira:issue_updated',
+                    'changelog': {'items': []},
+                },
+                False,
+                id='issue_updated_with_empty_changelog_items',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'jira:issue_updated',
+                    'changelog': {},
+                },
+                False,
+                id='issue_updated_with_empty_changelog',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'jira:issue_updated',
+                },
+                False,
+                id='issue_updated_without_changelog',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'comment_created',
+                    'changelog': {
+                        'items': [{'field': 'labels', 'toString': 'openhands'}]
+                    },
+                },
+                False,
+                id='comment_created_event_with_label',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'issue_deleted',
+                    'changelog': {
+                        'items': [{'field': 'labels', 'toString': 'openhands'}]
+                    },
+                },
+                False,
+                id='unsupported_event_type',
+            ),
+            pytest.param(
+                {},
+                False,
+                id='empty_payload',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'jira:issue_updated',
+                    'changelog': {
+                        'items': [{'field': 'status', 'toString': 'In Progress'}]
+                    },
+                },
+                False,
+                id='issue_updated_with_non_label_field',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'jira:issue_updated',
+                    'changelog': {
+                        'items': [{'field': 'labels', 'fromString': 'openhands'}]
+                    },
+                },
+                False,
+                id='issue_updated_with_fromString_instead_of_toString',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'jira:issue_updated',
+                    'changelog': {
+                        'items': [
+                            {'field': 'labels', 'toString': 'not-openhands'},
+                            {'field': 'priority', 'toString': 'High'},
+                        ]
+                    },
+                },
+                False,
+                id='issue_updated_with_mixed_fields_no_openhands',
+            ),
+        ],
+    )
+    def test_is_labeled_ticket(self, payload, expected):
+        """Test is_labeled_ticket with various payloads."""
+        with patch('integrations.jira.jira_view.OH_LABEL', 'openhands'):
+            message = Message(source=SourceType.JIRA, message={'payload': payload})
+            result = JiraFactory.is_labeled_ticket(message)
+            assert result == expected
 
-        with pytest.raises(
-            StartingConvoException, match='Failed to create conversation'
-        ):
-            await existing_conversation_view.create_or_update_conversation(
-                mock_jinja_env
+    @pytest.mark.parametrize(
+        'payload,expected',
+        [
+            pytest.param(
+                {
+                    'webhookEvent': 'jira:issue_updated',
+                    'changelog': {
+                        'items': [{'field': 'labels', 'toString': 'openhands-exp'}]
+                    },
+                },
+                True,
+                id='issue_updated_with_staging_label',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'jira:issue_updated',
+                    'changelog': {
+                        'items': [{'field': 'labels', 'toString': 'openhands'}]
+                    },
+                },
+                False,
+                id='issue_updated_with_prod_label_in_staging_env',
+            ),
+        ],
+    )
+    def test_is_labeled_ticket_staging_labels(self, payload, expected):
+        """Test is_labeled_ticket with staging environment labels."""
+        with patch('integrations.jira.jira_view.OH_LABEL', 'openhands-exp'):
+            message = Message(source=SourceType.JIRA, message={'payload': payload})
+            result = JiraFactory.is_labeled_ticket(message)
+            assert result == expected
+
+
+class TestJiraFactoryIsTicketComment:
+    """Parameterized tests for JiraFactory.is_ticket_comment method."""
+
+    @pytest.mark.parametrize(
+        'payload,expected',
+        [
+            pytest.param(
+                {
+                    'webhookEvent': 'comment_created',
+                    'comment': {'body': 'Please fix this @openhands'},
+                },
+                True,
+                id='comment_with_openhands_mention',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'comment_created',
+                    'comment': {'body': '@openhands please help'},
+                },
+                True,
+                id='comment_starting_with_openhands_mention',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'comment_created',
+                    'comment': {'body': 'Hello @openhands!'},
+                },
+                True,
+                id='comment_with_openhands_mention_and_punctuation',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'comment_created',
+                    'comment': {'body': '(@openhands)'},
+                },
+                True,
+                id='comment_with_openhands_in_parentheses',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'comment_created',
+                    'comment': {'body': 'Hey @OpenHands can you help?'},
+                },
+                True,
+                id='comment_with_case_insensitive_mention',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'comment_created',
+                    'comment': {'body': 'Hey @OPENHANDS!'},
+                },
+                True,
+                id='comment_with_uppercase_mention',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'comment_created',
+                    'comment': {'body': 'Regular comment without mention'},
+                },
+                False,
+                id='comment_without_mention',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'comment_created',
+                    'comment': {'body': 'Hello @openhands-agent!'},
+                },
+                False,
+                id='comment_with_openhands_as_prefix',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'comment_created',
+                    'comment': {'body': 'user@openhands.com'},
+                },
+                False,
+                id='comment_with_openhands_in_email',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'comment_created',
+                    'comment': {'body': ''},
+                },
+                False,
+                id='comment_with_empty_body',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'comment_created',
+                    'comment': {},
+                },
+                False,
+                id='comment_without_body',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'comment_created',
+                },
+                False,
+                id='comment_created_without_comment_data',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'jira:issue_updated',
+                    'comment': {'body': 'Please fix this @openhands'},
+                },
+                False,
+                id='issue_updated_event_with_mention',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'issue_deleted',
+                    'comment': {'body': '@openhands'},
+                },
+                False,
+                id='unsupported_event_type_with_mention',
+            ),
+            pytest.param(
+                {},
+                False,
+                id='empty_payload',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'comment_created',
+                    'comment': {'body': 'Multiple @openhands @openhands mentions'},
+                },
+                True,
+                id='comment_with_multiple_mentions',
+            ),
+        ],
+    )
+    def test_is_ticket_comment(self, payload, expected):
+        """Test is_ticket_comment with various payloads."""
+        with patch('integrations.jira.jira_view.INLINE_OH_LABEL', '@openhands'), patch(
+            'integrations.jira.jira_view.has_exact_mention'
+        ) as mock_has_exact_mention:
+            from integrations.utils import has_exact_mention
+
+            mock_has_exact_mention.side_effect = (
+                lambda text, mention: has_exact_mention(text, mention)
             )
+
+            message = Message(source=SourceType.JIRA, message={'payload': payload})
+            result = JiraFactory.is_ticket_comment(message)
+            assert result == expected
+
+    @pytest.mark.parametrize(
+        'payload,expected',
+        [
+            pytest.param(
+                {
+                    'webhookEvent': 'comment_created',
+                    'comment': {'body': 'Please fix this @openhands-exp'},
+                },
+                True,
+                id='comment_with_staging_mention',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'comment_created',
+                    'comment': {'body': '@openhands-exp please help'},
+                },
+                True,
+                id='comment_starting_with_staging_mention',
+            ),
+            pytest.param(
+                {
+                    'webhookEvent': 'comment_created',
+                    'comment': {'body': 'Please fix this @openhands'},
+                },
+                False,
+                id='comment_with_prod_mention_in_staging_env',
+            ),
+        ],
+    )
+    def test_is_ticket_comment_staging_labels(self, payload, expected):
+        """Test is_ticket_comment with staging environment labels."""
+        with patch(
+            'integrations.jira.jira_view.INLINE_OH_LABEL', '@openhands-exp'
+        ), patch(
+            'integrations.jira.jira_view.has_exact_mention'
+        ) as mock_has_exact_mention:
+            from integrations.utils import has_exact_mention
+
+            mock_has_exact_mention.side_effect = (
+                lambda text, mention: has_exact_mention(text, mention)
+            )
+
+            message = Message(source=SourceType.JIRA, message={'payload': payload})
+            result = JiraFactory.is_ticket_comment(message)
+            assert result == expected

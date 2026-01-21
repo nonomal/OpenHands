@@ -17,6 +17,7 @@ from integrations.utils import (
     HOST,
     HOST_URL,
     get_oh_labels,
+    get_user_v1_enabled_setting,
     has_exact_mention,
 )
 from jinja2 import Environment
@@ -24,9 +25,9 @@ from server.auth.constants import GITHUB_APP_CLIENT_ID, GITHUB_APP_PRIVATE_KEY
 from server.auth.token_manager import TokenManager
 from server.config import get_config
 from storage.database import session_maker
+from storage.org_store import OrgStore
 from storage.proactive_conversation_store import ProactiveConversationStore
 from storage.saas_secrets_store import SaasSecretsStore
-from storage.saas_settings_store import SaasSettingsStore
 
 from openhands.agent_server.models import SendMessageRequest
 from openhands.app_server.app_conversation.app_conversation_models import (
@@ -55,6 +56,10 @@ from openhands.utils.async_utils import call_sync_from_async
 OH_LABEL, INLINE_OH_LABEL = get_oh_labels(HOST)
 
 
+async def is_v1_enabled_for_github_resolver(user_id: str) -> bool:
+    return await get_user_v1_enabled_setting(user_id) and ENABLE_V1_GITHUB_RESOLVER
+
+
 async def get_user_proactive_conversation_setting(user_id: str | None) -> bool:
     """Get the user's proactive conversation setting.
 
@@ -73,51 +78,17 @@ async def get_user_proactive_conversation_setting(user_id: str | None) -> bool:
     if not user_id:
         return False
 
-    config = get_config()
-    settings_store = SaasSettingsStore(
-        user_id=user_id, session_maker=session_maker, config=config
-    )
-
-    settings = await call_sync_from_async(
-        settings_store.get_user_settings_by_keycloak_id, user_id
-    )
-
-    if not settings or settings.enable_proactive_conversation_starters is None:
+    # Check global setting first - if disabled globally, return False
+    if not ENABLE_PROACTIVE_CONVERSATION_STARTERS:
         return False
 
-    return settings.enable_proactive_conversation_starters
+    def _get_setting():
+        org = OrgStore.get_current_org_from_keycloak_user_id(user_id)
+        if not org:
+            return False
+        return bool(org.enable_proactive_conversation_starters)
 
-
-async def get_user_v1_enabled_setting(user_id: str) -> bool:
-    """Get the user's V1 conversation API setting.
-
-    Args:
-        user_id: The keycloak user ID
-
-    Returns:
-        True if V1 conversations are enabled for this user, False otherwise
-
-    Note:
-        This function checks both the global environment variable kill switch AND
-        the user's individual setting. Both must be true for the function to return true.
-    """
-    # Check the global environment variable first
-    if not ENABLE_V1_GITHUB_RESOLVER:
-        return False
-
-    config = get_config()
-    settings_store = SaasSettingsStore(
-        user_id=user_id, session_maker=session_maker, config=config
-    )
-
-    settings = await call_sync_from_async(
-        settings_store.get_user_settings_by_keycloak_id, user_id
-    )
-
-    if not settings or settings.v1_enabled is None:
-        return False
-
-    return settings.v1_enabled
+    return await call_sync_from_async(_get_setting)
 
 
 # =================================================
@@ -178,6 +149,7 @@ class GithubIssue(ResolverViewInterface):
             issue_body=self.description,
             previous_comments=self.previous_comments,
         )
+
         return user_instructions, conversation_instructions
 
     async def _get_user_secrets(self):
@@ -191,9 +163,10 @@ class GithubIssue(ResolverViewInterface):
     async def initialize_new_conversation(self) -> ConversationMetadata:
         # FIXME: Handle if initialize_conversation returns None
 
-        self.v1_enabled = await get_user_v1_enabled_setting(
+        self.v1_enabled = await is_v1_enabled_for_github_resolver(
             self.user_info.keycloak_user_id
         )
+
         logger.info(
             f'[GitHub V1]: User flag found for {self.user_info.keycloak_user_id} is {self.v1_enabled}'
         )
@@ -215,6 +188,7 @@ class GithubIssue(ResolverViewInterface):
             conversation_trigger=ConversationTrigger.RESOLVER,
             git_provider=ProviderType.GITHUB,
         )
+
         self.conversation_id = conversation_metadata.conversation_id
         return conversation_metadata
 
@@ -353,7 +327,6 @@ class GithubIssueComment(GithubIssue):
         conversation_instructions_template = jinja_env.get_template(
             'issue_conversation_instructions.j2'
         )
-
         conversation_instructions = conversation_instructions_template.render(
             issue_number=self.issue_number,
             issue_title=self.title,
@@ -423,7 +396,6 @@ class GithubInlinePRComment(GithubPRComment):
         conversation_instructions_template = jinja_env.get_template(
             'pr_update_conversation_instructions.j2'
         )
-
         conversation_instructions = conversation_instructions_template.render(
             pr_number=self.issue_number,
             pr_title=self.title,
@@ -438,7 +410,7 @@ class GithubInlinePRComment(GithubPRComment):
 
     def _create_github_v1_callback_processor(self):
         """Create a V1 callback processor for GitHub integration."""
-        from openhands.app_server.event_callback.github_v1_callback_processor import (
+        from integrations.github.github_v1_callback_processor import (
             GithubV1CallbackProcessor,
         )
 

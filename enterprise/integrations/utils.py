@@ -7,12 +7,8 @@ from typing import TYPE_CHECKING
 
 from jinja2 import Environment, FileSystemLoader
 from server.constants import WEB_HOST
-from storage.repository_store import RepositoryStore
-from storage.stored_repository import StoredRepository
-from storage.user_repo_map import UserRepositoryMap
-from storage.user_repo_map_store import UserRepositoryMapStore
+from storage.org_store import OrgStore
 
-from openhands.core.config.openhands_config import OpenHandsConfig
 from openhands.core.logger import openhands_logger as logger
 from openhands.core.schema.agent import AgentState
 from openhands.events import Event, EventSource
@@ -25,6 +21,7 @@ from openhands.events.event_store_abc import EventStoreABC
 from openhands.events.observation.agent import AgentStateChangedObservation
 from openhands.integrations.service_types import Repository
 from openhands.storage.data_models.conversation_status import ConversationStatus
+from openhands.utils.async_utils import call_sync_from_async
 
 if TYPE_CHECKING:
     from openhands.server.conversation_manager.conversation_manager import (
@@ -36,7 +33,7 @@ if TYPE_CHECKING:
 HOST = WEB_HOST
 # ---- DO NOT REMOVE ----
 
-HOST_URL = f'https://{HOST}'
+HOST_URL = f'https://{HOST}' if 'localhost' not in HOST else f'http://{HOST}'
 GITHUB_WEBHOOK_URL = f'{HOST_URL}/integration/github/events'
 GITLAB_WEBHOOK_URL = f'{HOST_URL}/integration/gitlab/events'
 conversation_prefix = 'conversations/{}'
@@ -78,6 +75,9 @@ ENABLE_V1_GITHUB_RESOLVER = (
     os.getenv('ENABLE_V1_GITHUB_RESOLVER', 'false').lower() == 'true'
 )
 
+ENABLE_V1_SLACK_RESOLVER = (
+    os.getenv('ENABLE_V1_SLACK_RESOLVER', 'false').lower() == 'true'
+)
 
 OPENHANDS_RESOLVER_TEMPLATES_DIR = (
     os.getenv('OPENHANDS_RESOLVER_TEMPLATES_DIR')
@@ -108,6 +108,28 @@ def get_summary_instruction():
     summary_instruction_template = jinja_env.get_template('summary_prompt.j2')
     summary_instruction = summary_instruction_template.render()
     return summary_instruction
+
+
+async def get_user_v1_enabled_setting(user_id: str | None) -> bool:
+    """Get the user's V1 conversation API setting.
+
+    Args:
+        user_id: The keycloak user ID
+
+    Returns:
+        True if V1 conversations are enabled for this user, False otherwise
+    """
+    if not user_id:
+        return False
+
+    org = await call_sync_from_async(
+        OrgStore.get_current_org_from_keycloak_user_id, user_id
+    )
+
+    if not org or org.v1_enabled is None:
+        return False
+
+    return org.v1_enabled
 
 
 def has_exact_mention(text: str, mention: str) -> bool:
@@ -370,51 +392,6 @@ def append_conversation_footer(message: str, conversation_id: str) -> str:
     conversation_link = CONVERSATION_URL.format(conversation_id)
     footer = f'\n\n[View full conversation]({conversation_link})'
     return message + footer
-
-
-async def store_repositories_in_db(repos: list[Repository], user_id: str) -> None:
-    """
-    Store repositories in DB and create user-repository mappings
-
-    Args:
-        repos: List of Repository objects to store
-        user_id: User ID associated with these repositories
-    """
-
-    # Convert Repository objects to StoredRepository objects
-    # Convert Repository objects to UserRepositoryMap objects
-    stored_repos = []
-    user_repos = []
-    for repo in repos:
-        repo_id = f'{repo.git_provider.value}##{str(repo.id)}'
-        stored_repo = StoredRepository(
-            repo_name=repo.full_name,
-            repo_id=repo_id,
-            is_public=repo.is_public,
-            # Optional fields set to None by default
-            has_microagent=None,
-            has_setup_script=None,
-        )
-        stored_repos.append(stored_repo)
-        user_repo_map = UserRepositoryMap(user_id=user_id, repo_id=repo_id, admin=None)
-
-        user_repos.append(user_repo_map)
-
-    # Get config instance
-    config = OpenHandsConfig()
-
-    try:
-        # Store repositories in the repos table
-        repo_store = RepositoryStore.get_instance(config)
-        repo_store.store_projects(stored_repos)
-
-        # Store user-repository mappings in the user-repos table
-        user_repo_store = UserRepositoryMapStore.get_instance(config)
-        user_repo_store.store_user_repo_mappings(user_repos)
-
-        logger.info(f'Saved repos for user {user_id}')
-    except Exception:
-        logger.warning('Failed to save repos', exc_info=True)
 
 
 def infer_repo_from_message(user_msg: str) -> list[str]:
