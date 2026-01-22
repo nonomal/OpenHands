@@ -35,6 +35,19 @@
 ### Components
 - [ ] `src/wrapper/v0-event-handler.tsx`
 - [ ] `src/components/shared/buttons/confirmation-buttons.tsx` (V0, no prefix)
+- [ ] `src/components/features/chat/messages.tsx` (V0, imported as `V0Messages`)
+- [ ] `src/components/features/chat/event-message.tsx` (V0 event renderer)
+- [ ] `src/components/features/chat/event-message-components/` (entire V0 directory)
+  - `error-event-message.tsx`
+  - `finish-event-message.tsx`
+  - `generic-event-message-wrapper.tsx`
+  - `likert-scale-wrapper.tsx`
+  - `mcp-event-message.tsx`
+  - `microagent-status-wrapper.tsx`
+  - `observation-pair-event-message.tsx`
+  - `reject-event-message.tsx`
+  - `task-tracking-event-message.tsx`
+  - `user-assistant-event-message.tsx`
 
 ### Utilities
 - [ ] `src/api/conversation.utils.ts` (handles both, simplify after V0 removal)
@@ -132,6 +145,18 @@ These exist only to route between V0 and V1 implementations:
 - [x] `src/types/core/observations.ts` (file-level)
 - [x] `src/types/core/guards.ts` (file-level)
 - [x] `src/types/core/variances.ts` (file-level)
+- [x] `src/components/features/chat/messages.tsx` (file-level)
+- [x] `src/components/features/chat/event-message.tsx` (file-level)
+- [x] `src/components/features/chat/event-message-components/error-event-message.tsx` (file-level)
+- [x] `src/components/features/chat/event-message-components/finish-event-message.tsx` (file-level)
+- [x] `src/components/features/chat/event-message-components/generic-event-message-wrapper.tsx` (file-level)
+- [x] `src/components/features/chat/event-message-components/likert-scale-wrapper.tsx` (file-level)
+- [x] `src/components/features/chat/event-message-components/mcp-event-message.tsx` (file-level)
+- [x] `src/components/features/chat/event-message-components/microagent-status-wrapper.tsx` (file-level)
+- [x] `src/components/features/chat/event-message-components/observation-pair-event-message.tsx` (file-level)
+- [x] `src/components/features/chat/event-message-components/reject-event-message.tsx` (file-level)
+- [x] `src/components/features/chat/event-message-components/task-tracking-event-message.tsx` (file-level)
+- [x] `src/components/features/chat/event-message-components/user-assistant-event-message.tsx` (file-level)
 
 ---
 
