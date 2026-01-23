@@ -1,64 +1,88 @@
 # System Architecture Overview
 
-OpenHands uses a multi-tier architecture with these main components:
+OpenHands supports multiple deployment configurations. This document describes the core components and how they interact.
+
+## Local/Docker Deployment
+
+The simplest deployment runs everything locally or in Docker containers:
 
 ```mermaid
 flowchart TB
-    subgraph AppServer["OpenHands App Server (Single Instance)"]
+    subgraph Server["OpenHands Server"]
         API["REST API<br/>(FastAPI)"]
-        Auth["Authentication"]
         ConvMgr["Conversation<br/>Manager"]
-        SandboxSvc["Sandbox<br/>Service"]
+        Runtime["Runtime<br/>Manager"]
     end
 
-    subgraph RuntimeAPI["Runtime API (Separate Service)"]
-        RuntimeMgr["Runtime<br/>Manager"]
-        WarmPool["Warm Runtime<br/>Pool"]
-    end
-
-    subgraph Sandbox["Sandbox (Docker/K8s Container)"]
-        AS["Agent Server<br/>(openhands-agent-server)"]
+    subgraph Sandbox["Sandbox (Docker Container)"]
         AES["Action Execution<br/>Server"]
         Browser["Browser<br/>Environment"]
         FS["File System"]
     end
 
-    User["User"] -->|"1. HTTP/REST"| API
-    API --> Auth
-    Auth --> ConvMgr
-    ConvMgr --> SandboxSvc
+    User["User"] -->|"HTTP/WebSocket"| API
+    API --> ConvMgr
+    ConvMgr --> Runtime
+    Runtime -->|"Provision"| Sandbox
 
-    SandboxSvc -->|"2. POST /start"| RuntimeMgr
-    RuntimeMgr -->|"Check pool"| WarmPool
-    WarmPool -->|"Warm runtime<br/>available?"| RuntimeMgr
-    RuntimeMgr -->|"3. Provision or<br/>assign runtime"| Sandbox
-
-    User -.->|"4. WebSocket<br/>(Direct)"| AS
-
-    AS -->|"HTTP"| AES
+    Server -->|"Execute actions"| AES
     AES --> Browser
     AES --> FS
 ```
 
-### Component Responsibilities
+### Core Components
 
-| Component | Location | Instances | Purpose |
-|-----------|----------|-----------|---------|
-| **App Server** | Host | 1 per deployment | REST API, auth, conversation management |
-| **Sandbox Service** | Inside App Server | 1 | Manages sandbox lifecycle, calls Runtime API |
-| **Runtime API** | Separate service | 1 per deployment | Provisions runtimes, manages warm pool |
-| **Agent Server** | Inside sandbox | 1 per sandbox | AI agent loop, LLM calls, state management |
-| **Action Execution Server** | Inside sandbox | 1 per sandbox | Execute bash, file ops, browser actions |
+| Component | Purpose | Location |
+|-----------|---------|----------|
+| **Server** | REST API, conversation management, runtime orchestration | `openhands/server/` |
+| **Runtime** | Abstract interface for sandbox execution | `openhands/runtime/` |
+| **Action Execution Server** | Execute bash, file ops, browser actions | Inside sandbox |
+| **EventStream** | Central event bus for all communication | `openhands/events/` |
 
-### Runtime API Endpoints
+## Scalable Deployment
 
-The Runtime API manages the actual container/pod lifecycle:
+For production deployments, OpenHands can be configured with a separate Runtime API service:
 
-| Endpoint | Purpose |
-|----------|---------|
-| `POST /start` | Start a new runtime (or assign from warm pool) |
-| `POST /stop` | Stop and clean up a runtime |
-| `POST /pause` | Pause a running runtime |
-| `POST /resume` | Resume a paused runtime |
-| `GET /sessions/{id}` | Get runtime status |
-| `GET /list` | List all active runtimes |
+```mermaid
+flowchart TB
+    subgraph AppServer["App Server"]
+        API["REST API"]
+        ConvMgr["Conversation<br/>Manager"]
+    end
+
+    subgraph RuntimeAPI["Runtime API (Optional)"]
+        RuntimeMgr["Runtime<br/>Manager"]
+        WarmPool["Warm Pool"]
+    end
+
+    subgraph Sandbox["Sandbox"]
+        AS["Agent Server"]
+        AES["Action Execution<br/>Server"]
+    end
+
+    User["User"] -->|"HTTP"| API
+    API --> ConvMgr
+    ConvMgr -->|"Provision"| RuntimeMgr
+    RuntimeMgr --> WarmPool
+    RuntimeMgr --> Sandbox
+
+    User -.->|"WebSocket"| AS
+    AS -->|"HTTP"| AES
+```
+
+This configuration enables:
+- **Warm pool**: Pre-provisioned runtimes for faster startup
+- **Direct WebSocket**: Users connect directly to their sandbox, bypassing the App Server
+- **Horizontal scaling**: App Server and Runtime API can scale independently
+
+### Runtime Options
+
+OpenHands supports multiple runtime implementations:
+
+| Runtime | Use Case |
+|---------|----------|
+| **DockerRuntime** | Local development, single-machine deployments |
+| **RemoteRuntime** | Connect to externally managed sandboxes |
+| **ModalRuntime** | Serverless execution via Modal |
+
+See the [Runtime documentation](https://docs.openhands.dev/usage/architecture/runtime) for details.

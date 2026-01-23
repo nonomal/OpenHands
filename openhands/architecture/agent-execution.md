@@ -86,11 +86,7 @@ User selects model
                                        (User's API key + endpoint)
 ```
 
-### LLM Proxy Benefits
+### LLM Proxy
 
-When using `openhands/` prefixed models:
-- **Unified Billing**: Costs tracked through OpenHands account
-- **No API Keys Needed**: Users don't need their own provider keys
-- **Rate Limiting**: Managed quotas and throttling
-- **Model Routing**: Automatic failover and load balancing
-- **Usage Tracking**: Detailed metrics and cost analysis
+When using `openhands/` prefixed models, requests are routed through a managed proxy.
+See the [OpenHands documentation](https://docs.openhands.dev/) for details on supported models.

@@ -3,13 +3,10 @@ This directory contains the core components of OpenHands.
 
 ## Documentation
 
-- **[Architecture Documentation](./architecture/README.md)** - Detailed system architecture with Mermaid diagrams covering:
+**[Architecture Documentation](./architecture/README.md)** with diagrams covering:
   - System Architecture Overview
   - Conversation Startup & WebSocket Flow
-  - Authentication Flow (Keycloak)
   - Agent Execution & LLM Flow
-  - External Integrations (GitHub, Slack, Jira, etc.)
-  - Metrics, Logs & Observability
 
 - **[External Architecture Docs](https://docs.openhands.dev/usage/architecture/backend)** - Official documentation (v0 backend architecture)
 

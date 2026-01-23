@@ -1,6 +1,10 @@
-# Metrics, Logs & Observability
+# Observability
 
-OpenHands uses multiple systems for monitoring, analytics, and debugging:
+OpenHands provides structured logging and metrics collection for monitoring and debugging.
+
+> **SDK Documentation**: For detailed guidance on observability and metrics in agent development, see:
+> - [SDK Observability Guide](https://docs.openhands.dev/sdk/guides/observability)
+> - [SDK Metrics Guide](https://docs.openhands.dev/sdk/guides/metrics)
 
 ```mermaid
 flowchart LR
@@ -11,37 +15,36 @@ flowchart LR
     end
 
     subgraph Collection["Collection"]
-        JSONLog["JSON Logs"]
-        Metrics["Metrics"]
-        PH["PostHog"]
+        JSONLog["JSON Logs<br/>(stdout)"]
+        Metrics["Metrics<br/>(Internal)"]
     end
 
-    subgraph Services["Services"]
-        DD["DataDog"]
-        PHCloud["PostHog Cloud"]
+    subgraph External["External (Optional)"]
+        LogAgg["Log Aggregator"]
+        Analytics["Analytics Service"]
     end
 
     Agent --> JSONLog
     App --> JSONLog
-    App --> PH
-    Frontend --> PH
+    App --> Metrics
 
-    JSONLog --> DD
-    Metrics --> DD
-    PH --> PHCloud
+    JSONLog --> LogAgg
+    Frontend --> Analytics
 ```
 
-### Logging Infrastructure
+### Structured Logging
+
+OpenHands uses Python's standard logging library with structured JSON output support.
 
 | Component | Format | Destination | Purpose |
 |-----------|--------|-------------|---------|
-| **Application Logs** | JSON (when `LOG_JSON=1`) | stdout → DataDog | Debugging, error tracking |
-| **Access Logs** | JSON (Uvicorn) | stdout → DataDog | Request tracing |
+| **Application Logs** | JSON (when `LOG_JSON=1`) | stdout | Debugging, error tracking |
+| **Access Logs** | JSON (Uvicorn) | stdout | Request tracing |
 | **LLM Debug Logs** | Plain text | File (optional) | LLM call debugging |
 
 ### JSON Log Format
 
-When `LOG_JSON=1` is set, all logs are emitted as single-line JSON for DataDog ingestion:
+When `LOG_JSON=1` is set, logs are emitted as single-line JSON for ingestion by log aggregators:
 
 ```json
 {
@@ -53,44 +56,19 @@ When `LOG_JSON=1` is set, all logs are emitted as single-line JSON for DataDog i
 }
 ```
 
-### Metrics Tracked
+Additional context can be added using Python's logger `extra=` parameter (see [Python logging docs](https://docs.python.org/3/library/logging.html)).
+
+### Metrics
 
 | Metric | Tracked By | Storage | Purpose |
 |--------|------------|---------|---------|
 | **LLM Cost** | `Metrics` class | Conversation stats file | Billing, budget limits |
 | **Token Usage** | `Metrics` class | Conversation stats file | Usage analytics |
 | **Response Latency** | `Metrics` class | Conversation stats file | Performance monitoring |
-| **User Events** | PostHog | PostHog Cloud | Product analytics |
-| **Feature Flags** | PostHog | PostHog Cloud | Gradual rollouts |
-
-### PostHog Analytics
-
-PostHog is used for both product analytics and feature flags:
-
-**Frontend Events:**
-- `conversation_started`
-- `download_trajectory_button_clicked`
-- Feature flag checks
-
-**Backend Events:**
-- Experiment assignments
-- Conversion tracking
-
-### DataDog Integration
-
-Logs are ingested by DataDog through structured JSON output:
-
-1. **Log Collection**: Container stdout/stderr → DataDog Agent → DataDog Logs
-2. **APM Traces**: Distributed tracing across services (when enabled)
-3. **Dashboards**: Custom dashboards for:
-   - Error rates by service
-   - Request latency percentiles
-   - Conversation success rates
-   - LLM cost tracking
 
 ### Conversation Stats Persistence
 
-Per-conversation metrics are persisted for billing and analytics:
+Per-conversation metrics are persisted for analytics:
 
 ```python
 # Location: openhands/server/services/conversation_stats.py
@@ -101,3 +79,7 @@ ConversationStats:
 
 # Stored at: {file_store}/conversation_stats/{conversation_id}.pkl
 ```
+
+### Integration with External Services
+
+Structured JSON logging allows integration with any log aggregation service (e.g., ELK Stack, Loki, Splunk). Configure your log collector to ingest from container stdout/stderr.

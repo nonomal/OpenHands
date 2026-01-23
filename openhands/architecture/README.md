@@ -1,12 +1,10 @@
 # OpenHands Architecture
 
-This document provides detailed architecture diagrams and explanations for the OpenHands system.
+Architecture diagrams and explanations for the OpenHands system.
 
 ## Documentation Sections
 
-- [System Architecture Overview](./system-architecture.md)
-- [Conversation Startup & WebSocket Flow](./conversation-startup.md)
-- [Authentication Flow](./authentication.md)
-- [Agent Execution & LLM Flow](./agent-execution.md)
-- [External Integrations](./external-integrations.md)
-- [Metrics, Logs & Observability](./observability.md)
+- [System Architecture Overview](./system-architecture.md) - Multi-tier architecture and component responsibilities
+- [Conversation Startup & WebSocket Flow](./conversation-startup.md) - Runtime provisioning and real-time communication
+- [Agent Execution & LLM Flow](./agent-execution.md) - LLM integration and action execution loop
+- [Observability](./observability.md) - Logging, metrics, and monitoring
