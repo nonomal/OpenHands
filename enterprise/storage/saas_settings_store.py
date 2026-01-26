@@ -127,7 +127,6 @@ class SaasSettingsStore(SettingsStore):
         user = None
         user_settings = None
         with self.session_maker() as session:
-            kwargs = item.model_dump(context={'expose_secrets': True})
             user = (
                 session.query(User)
                 .options(joinedload(User.org_members))
@@ -142,12 +141,42 @@ class SaasSettingsStore(SettingsStore):
         # Session closed here - important to avoid deadlocks during migration
 
         if not user and user_settings:
-            # Perform migration outside of any open session to avoid nested session deadlocks
-            from server.auth.token_manager import TokenManager
+            # Acquire distributed lock before migration to prevent race conditions
+            while not await UserStore._acquire_user_creation_lock(self.user_id):
+                logger.info(
+                    'saas_settings_store:store:waiting_for_lock',
+                    extra={'user_id': self.user_id},
+                )
+                import asyncio
 
-            token_manager = TokenManager()
-            user_info = await token_manager.get_user_info_from_user_id(self.user_id)
-            user = await UserStore.migrate_user(self.user_id, user_settings, user_info)
+                await asyncio.sleep(2)  # _RETRY_LOAD_DELAY_SECONDS
+
+            try:
+                # Check again if user was created while waiting for lock
+                with self.session_maker() as session:
+                    user = (
+                        session.query(User)
+                        .options(joinedload(User.org_members))
+                        .filter(User.id == uuid.UUID(self.user_id))
+                    ).first()
+
+                if not user:
+                    # Perform migration outside of any open session to avoid nested session deadlocks
+                    from server.auth.token_manager import TokenManager
+
+                    token_manager = TokenManager()
+                    user_info = await token_manager.get_user_info_from_user_id(
+                        self.user_id
+                    )
+                    if not user_info:
+                        logger.error(f'User info not found for ID {self.user_id}')
+                        return None
+                    user = await UserStore.migrate_user(
+                        self.user_id, user_settings, user_info
+                    )
+            finally:
+                # Always release the lock when done (success or failure)
+                await UserStore._release_user_creation_lock(self.user_id)
 
         if not user:
             logger.error(f'User not found for ID {self.user_id}')
