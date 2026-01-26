@@ -116,7 +116,7 @@ class UserStore:
         redis_client = UserStore._get_redis_client()
         if redis_client is None:
             logger.warning(
-                'saas_settings_store:_acquire_user_creation_lock:no_redis_client',
+                'user_store:_acquire_user_creation_lock:no_redis_client',
                 extra={'user_id': user_id},
             )
             return True  # Proceed without locking if Redis is unavailable
@@ -159,12 +159,20 @@ class UserStore:
 
             from storage.lite_llm_manager import LiteLlmManager
 
+            logger.info(
+                'user_store:migrate_user:calling_litellm_migrate_entries',
+                extra={'user_id': user_id},
+            )
             await LiteLlmManager.migrate_entries(
                 str(org.id),
                 user_id,
                 decrypted_user_settings,
             )
 
+            logger.info(
+                'user_store:migrate_user:done_litellm_migrate_entries',
+                extra={'user_id': user_id},
+            )
             custom_settings = UserStore._has_custom_settings(
                 decrypted_user_settings, user_settings.user_version
             )
@@ -172,7 +180,15 @@ class UserStore:
             # avoids circular reference. This migrate method is temprorary until all users are migrated.
             from integrations.stripe_service import migrate_customer
 
+            logger.info(
+                'user_store:migrate_user:calling_stripe_migrate_customer',
+                extra={'user_id': user_id},
+            )
             await migrate_customer(session, user_id, org)
+            logger.info(
+                'user_store:migrate_user:done_stripe_migrate_customer',
+                extra={'user_id': user_id},
+            )
 
             from storage.org_store import OrgStore
 
@@ -201,7 +217,15 @@ class UserStore:
             )
             session.add(user)
 
+            logger.info(
+                'user_store:migrate_user:calling_get_role_by_name',
+                extra={'user_id': user_id},
+            )
             role = RoleStore.get_role_by_name('owner')
+            logger.info(
+                'user_store:migrate_user:done_get_role_by_name',
+                extra={'user_id': user_id},
+            )
 
             from storage.org_member_store import OrgMemberStore
 
@@ -229,6 +253,10 @@ class UserStore:
             user_settings.already_migrated = True
             session.merge(user_settings)
             session.flush()
+            logger.info(
+                'user_store:migrate_user:session_flush_complete',
+                extra={'user_id': user_id},
+            )
 
             # need to migrate conversation metadata
             session.execute(
@@ -296,6 +324,10 @@ class UserStore:
             session.commit()
             session.refresh(user)
             user.org_members  # load org_members
+            logger.info(
+                'user_store:migrate_user:session_committed',
+                extra={'user_id': user_id},
+            )
             return user
 
     @staticmethod
@@ -322,7 +354,7 @@ class UserStore:
             ):
                 # The user is already being created in another thread / process
                 logger.info(
-                    'saas_settings_store:create_default_settings:waiting_for_lock',
+                    'user_store:create_default_settings:waiting_for_lock',
                     extra={'user_id': user_id},
                 )
                 call_async_from_sync(
@@ -386,7 +418,7 @@ class UserStore:
             while not await UserStore._acquire_user_creation_lock(user_id):
                 # The user is already being created in another thread / process
                 logger.info(
-                    'saas_settings_store:create_default_settings:waiting_for_lock',
+                    'user_store:get_user_by_id_async:waiting_for_lock',
                     extra={'user_id': user_id},
                 )
                 await asyncio.sleep(_RETRY_LOAD_DELAY_SECONDS)
@@ -401,6 +433,10 @@ class UserStore:
             if user:
                 return user
 
+            logger.info(
+                'user_store:get_user_by_id_async:start_migration',
+                extra={'user_id': user_id},
+            )
             result = await session.execute(
                 select(UserSettings).filter(
                     UserSettings.keycloak_user_id == user_id,
@@ -411,6 +447,10 @@ class UserStore:
             if user_settings:
                 token_manager = TokenManager()
                 user_info = await token_manager.get_user_info_from_user_id(user_id)
+                logger.info(
+                    'user_store:get_user_by_id_async:calling_migrate_user',
+                    extra={'user_id': user_id},
+                )
                 user = await UserStore.migrate_user(
                     user_id,
                     user_settings,
