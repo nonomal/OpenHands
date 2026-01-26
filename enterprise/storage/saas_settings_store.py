@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import binascii
 import hashlib
 import uuid
@@ -17,7 +18,7 @@ from storage.org_member import OrgMember
 from storage.org_store import OrgStore
 from storage.user import User
 from storage.user_settings import UserSettings
-from storage.user_store import UserStore
+from storage.user_store import _RETRY_LOAD_DELAY_SECONDS, UserStore
 
 from openhands.core.config.openhands_config import OpenHandsConfig
 from openhands.server.settings import Settings
@@ -147,9 +148,7 @@ class SaasSettingsStore(SettingsStore):
                     'saas_settings_store:store:waiting_for_lock',
                     extra={'user_id': self.user_id},
                 )
-                import asyncio
-
-                await asyncio.sleep(2)  # _RETRY_LOAD_DELAY_SECONDS
+                await asyncio.sleep(_RETRY_LOAD_DELAY_SECONDS)
 
             try:
                 # Check again if user was created while waiting for lock
