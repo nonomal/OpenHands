@@ -221,7 +221,7 @@ class UserStore:
                 'user_store:migrate_user:calling_get_role_by_name',
                 extra={'user_id': user_id},
             )
-            role = await RoleStore.get_role_by_name_async('owner', session=session)
+            role = await RoleStore.get_role_by_name_async('owner')
             logger.info(
                 'user_store:migrate_user:done_get_role_by_name',
                 extra={'user_id': user_id},
