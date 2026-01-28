@@ -19,7 +19,6 @@ from sqlalchemy.orm import joinedload
 from storage.database import a_session_maker, session_maker
 from storage.encrypt_utils import (
     decrypt_legacy_model,
-    encrypt_legacy_model,
     encrypt_legacy_value,
 )
 from storage.org import Org

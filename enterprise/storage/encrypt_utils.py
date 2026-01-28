@@ -114,7 +114,9 @@ def encrypt_legacy_kwargs(encrypt_keys: list, kwargs: dict) -> dict:
 
 def encrypt_legacy_value(value: str | SecretStr) -> str:
     if isinstance(value, SecretStr):
-        return b64encode(get_fernet().encrypt(value.get_secret_value().encode())).decode()
+        return b64encode(
+            get_fernet().encrypt(value.get_secret_value().encode())
+        ).decode()
     else:
         return b64encode(get_fernet().encrypt(value.encode())).decode()
 
