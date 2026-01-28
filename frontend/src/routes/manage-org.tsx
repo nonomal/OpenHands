@@ -6,14 +6,10 @@ import { useOrganization } from "#/hooks/query/use-organization";
 import { useOrganizationPaymentInfo } from "#/hooks/query/use-organization-payment-info";
 import { ModalBackdrop } from "#/components/shared/modals/modal-backdrop";
 import { cn } from "#/utils/utils";
-import { organizationService } from "#/api/organization-service/organization-service.api";
 import { SettingsInput } from "#/components/features/settings/settings-input";
 import { BrandButton } from "#/components/features/settings/brand-button";
 import { useMe } from "#/hooks/query/use-me";
 import { useConfig } from "#/hooks/query/use-config";
-import { getSelectedOrganizationIdFromStore } from "#/stores/selected-organization-store";
-import { getMeFromQueryClient } from "#/utils/query-client-getters";
-import { queryClient } from "#/query-client-config";
 import { I18nKey } from "#/i18n/declaration";
 import { amountIsValid } from "#/utils/amount-is-valid";
 import { useUpdateOrganization } from "#/hooks/mutation/use-update-organization";
@@ -21,6 +17,8 @@ import { useDeleteOrganization } from "#/hooks/mutation/use-delete-organization"
 import { CreditsChip } from "#/ui/credits-chip";
 import { InteractiveChip } from "#/ui/interactive-chip";
 import { usePermission } from "#/hooks/organizations/use-permissions";
+import { getActiveOrganizationUser } from "#/utils/org/permission-checks";
+import { rolePermissions } from "#/utils/org/permissions";
 
 interface ChangeOrgNameModalProps {
   onClose: () => void;
@@ -210,16 +208,11 @@ function AddCreditsModal({ onClose }: AddCreditsModalProps) {
 }
 
 export const clientLoader = async () => {
-  const selectedOrgId = getSelectedOrganizationIdFromStore();
-  let me = getMeFromQueryClient(selectedOrgId);
+  const user = await getActiveOrganizationUser();
+  const userRole = user?.role || "member";
 
-  if (!me && selectedOrgId) {
-    me = await organizationService.getMe({ orgId: selectedOrgId });
-    queryClient.setQueryData(["organizations", selectedOrgId, "me"], me);
-  }
-
-  if (!me || me.role === "member") {
-    // if user is USER role, redirect to user settings
+  // Redirect if user lacks view_billing permission (members cannot access org management)
+  if (!rolePermissions[userRole].includes("view_billing")) {
     return redirect("/settings/user");
   }
 

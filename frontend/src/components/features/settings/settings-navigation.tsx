@@ -9,7 +9,9 @@ import { SettingsDropdownInput } from "./settings-dropdown-input";
 import { useSelectedOrganizationId } from "#/context/use-selected-organization";
 import { useOrganizations } from "#/hooks/query/use-organizations";
 import { useMe } from "#/hooks/query/use-me";
+import { usePermission } from "#/hooks/organizations/use-permissions";
 import { SettingsNavItem } from "#/constants/settings-nav";
+import { OrganizationUserRole } from "#/types/org";
 
 interface SettingsNavigationProps {
   isMobileMenuOpen: boolean;
@@ -28,7 +30,8 @@ export function SettingsNavigation({
 
   const { t } = useTranslation();
 
-  const isUser = me?.role === "member";
+  const userRole: OrganizationUserRole = me?.role ?? "member";
+  const { hasPermission } = usePermission(userRole);
 
   return (
     <>
@@ -92,11 +95,19 @@ export function SettingsNavigation({
         <div className="flex flex-col gap-2">
           {navigationItems
             .filter((navItem) => {
-              // if user is not an admin or no org is selected, do not show organization members/org settings
+              // Hide org settings if user lacks view_billing permission or no org is selected
               if (
-                (navItem.to === "/settings/org-members" ||
-                  navItem.to === "/settings/org") &&
-                (isUser || !organizationId)
+                navItem.to === "/settings/org" &&
+                (!hasPermission("view_billing") || !organizationId)
+              ) {
+                return false;
+              }
+
+              // Hide org members if user lacks invite_user_to_organization permission or no org is selected
+              if (
+                navItem.to === "/settings/org-members" &&
+                (!hasPermission("invite_user_to_organization") ||
+                  !organizationId)
               ) {
                 return false;
               }

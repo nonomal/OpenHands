@@ -12,25 +12,19 @@ import { useRemoveMember } from "#/hooks/mutation/use-remove-member";
 import { useMe } from "#/hooks/query/use-me";
 import { BrandButton } from "#/components/features/settings/brand-button";
 import { rolePermissions } from "#/utils/org/permissions";
-import { organizationService } from "#/api/organization-service/organization-service.api";
-import { queryClient } from "#/query-client-config";
-import { getSelectedOrganizationIdFromStore } from "#/stores/selected-organization-store";
-import { getMeFromQueryClient } from "#/utils/query-client-getters";
 import { I18nKey } from "#/i18n/declaration";
 import { usePermission } from "#/hooks/organizations/use-permissions";
-import { getAvailableRolesAUserCanAssign } from "#/utils/org/permission-checks";
+import {
+  getActiveOrganizationUser,
+  getAvailableRolesAUserCanAssign,
+} from "#/utils/org/permission-checks";
 
 export const clientLoader = async () => {
-  const selectedOrgId = getSelectedOrganizationIdFromStore();
-  let me = getMeFromQueryClient(selectedOrgId);
+  const user = await getActiveOrganizationUser();
+  const userRole = user?.role || "member";
 
-  if (!me && selectedOrgId) {
-    me = await organizationService.getMe({ orgId: selectedOrgId });
-    queryClient.setQueryData(["organizations", selectedOrgId, "me"], me);
-  }
-
-  if (!me || me.role === "member") {
-    // if user is USER role, redirect to user settings
+  // Redirect if user lacks invite_user_to_organization permission (members cannot access member management)
+  if (!rolePermissions[userRole].includes("invite_user_to_organization")) {
     return redirect("/settings/user");
   }
 
