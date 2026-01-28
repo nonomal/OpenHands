@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router";
+import { redirect, useSearchParams } from "react-router";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { PaymentForm } from "#/components/features/payment/payment-form";
@@ -8,6 +8,32 @@ import {
 } from "#/utils/custom-toast-handlers";
 import { I18nKey } from "#/i18n/declaration";
 import { useTracking } from "#/hooks/use-tracking";
+import { getActiveOrganizationUser } from "#/utils/org/permission-checks";
+import { rolePermissions } from "#/utils/org/permissions";
+import { queryClient } from "#/query-client-config";
+import OptionService from "#/api/option-service/option-service.api";
+import { GetConfigResponse } from "#/api/option-service/option.types";
+
+export const clientLoader = async () => {
+  const user = await getActiveOrganizationUser();
+  const userRole = user?.role || "member";
+
+  let config = queryClient.getQueryData<GetConfigResponse>(["config"]);
+  if (!config) {
+    config = await OptionService.getConfig();
+    queryClient.setQueryData<GetConfigResponse>(["config"], config);
+  }
+
+  // Redirect if billing is hidden or user lacks view_billing permission
+  if (
+    config?.FEATURE_FLAGS?.HIDE_BILLING ||
+    !rolePermissions[userRole].includes("view_billing")
+  ) {
+    return redirect("/settings/user");
+  }
+
+  return null;
+};
 
 function BillingSettingsScreen() {
   const { t } = useTranslation();
