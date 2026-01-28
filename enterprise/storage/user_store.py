@@ -241,7 +241,6 @@ class UserStore:
             if not custom_settings:
                 del org_member_kwargs['llm_model']
                 del org_member_kwargs['llm_base_url']
-                del org_member_kwargs['llm_api_key_for_byor']
 
             org_member = OrgMember(
                 org_id=org.id,
