@@ -1,5 +1,4 @@
 import React from "react";
-import { redirect } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useCreateStripeCheckoutSession } from "#/hooks/mutation/stripe/use-create-stripe-checkout-session";
 import { useOrganization } from "#/hooks/query/use-organization";
@@ -17,8 +16,7 @@ import { useDeleteOrganization } from "#/hooks/mutation/use-delete-organization"
 import { CreditsChip } from "#/ui/credits-chip";
 import { InteractiveChip } from "#/ui/interactive-chip";
 import { usePermission } from "#/hooks/organizations/use-permissions";
-import { getActiveOrganizationUser } from "#/utils/org/permission-checks";
-import { rolePermissions } from "#/utils/org/permissions";
+import { createPermissionGuard } from "#/utils/org/permission-guard";
 
 interface ChangeOrgNameModalProps {
   onClose: () => void;
@@ -207,17 +205,7 @@ function AddCreditsModal({ onClose }: AddCreditsModalProps) {
   );
 }
 
-export const clientLoader = async () => {
-  const user = await getActiveOrganizationUser();
-  const userRole = user?.role || "member";
-
-  // Redirect if user lacks view_billing permission (members cannot access org management)
-  if (!rolePermissions[userRole].includes("view_billing")) {
-    return redirect("/settings/user");
-  }
-
-  return null;
-};
+export const clientLoader = createPermissionGuard("view_billing");
 
 function ManageOrg() {
   const { t } = useTranslation();

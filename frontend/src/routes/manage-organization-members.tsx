@@ -2,7 +2,6 @@ import React from "react";
 import ReactDOM from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
-import { redirect } from "react-router";
 import { InviteOrganizationMemberModal } from "#/components/features/org/invite-organization-member-modal";
 import { useOrganizationMembers } from "#/hooks/query/use-organization-members";
 import { OrganizationMember, OrganizationUserRole } from "#/types/org";
@@ -14,22 +13,12 @@ import { BrandButton } from "#/components/features/settings/brand-button";
 import { rolePermissions } from "#/utils/org/permissions";
 import { I18nKey } from "#/i18n/declaration";
 import { usePermission } from "#/hooks/organizations/use-permissions";
-import {
-  getActiveOrganizationUser,
-  getAvailableRolesAUserCanAssign,
-} from "#/utils/org/permission-checks";
+import { getAvailableRolesAUserCanAssign } from "#/utils/org/permission-checks";
+import { createPermissionGuard } from "#/utils/org/permission-guard";
 
-export const clientLoader = async () => {
-  const user = await getActiveOrganizationUser();
-  const userRole = user?.role || "member";
-
-  // Redirect if user lacks invite_user_to_organization permission (members cannot access member management)
-  if (!rolePermissions[userRole].includes("invite_user_to_organization")) {
-    return redirect("/settings/user");
-  }
-
-  return null;
-};
+export const clientLoader = createPermissionGuard(
+  "invite_user_to_organization",
+);
 
 function ManageOrganizationMembers() {
   const { t } = useTranslation();
