@@ -430,15 +430,16 @@ class TestLiteLlmManager:
 
     @pytest.mark.asyncio
     async def test_create_user_success(self, mock_http_client, mock_response):
-        """Test successful _create_user operation."""
+        """Test successful _create_user operation returns True."""
         mock_http_client.post.return_value = mock_response
 
         with patch('storage.lite_llm_manager.LITE_LLM_API_KEY', 'test-key'):
             with patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'http://test.com'):
-                await LiteLlmManager._create_user(
+                result = await LiteLlmManager._create_user(
                     mock_http_client, 'test@example.com', 'test-user-id'
                 )
 
+                assert result is True
                 mock_http_client.post.assert_called_once()
                 call_args = mock_http_client.post.call_args
                 assert 'http://test.com/user/new' in call_args[0]
@@ -447,7 +448,7 @@ class TestLiteLlmManager:
 
     @pytest.mark.asyncio
     async def test_create_user_duplicate_email(self, mock_http_client, mock_response):
-        """Test _create_user with duplicate email handling."""
+        """Test _create_user with duplicate email handling returns True on success."""
         # First call fails with duplicate email
         error_response = MagicMock()
         error_response.is_success = False
@@ -459,10 +460,11 @@ class TestLiteLlmManager:
 
         with patch('storage.lite_llm_manager.LITE_LLM_API_KEY', 'test-key'):
             with patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'http://test.com'):
-                await LiteLlmManager._create_user(
+                result = await LiteLlmManager._create_user(
                     mock_http_client, 'test@example.com', 'test-user-id'
                 )
 
+                assert result is True
                 assert mock_http_client.post.call_count == 2
                 # Second call should have None email
                 second_call_args = mock_http_client.post.call_args_list[1]
@@ -472,10 +474,10 @@ class TestLiteLlmManager:
     @patch('storage.lite_llm_manager.logger')
     @patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'http://test.com')
     @patch('storage.lite_llm_manager.LITE_LLM_API_KEY', 'test-key')
-    async def test_create_user_already_exists_with_409_status_code(
+    async def test_create_user_already_exists_with_409_status_code_verified(
         self, mock_logger, mock_http_client
     ):
-        """Test _create_user handles 409 Conflict when user already exists."""
+        """Test _create_user returns True when user already exists and is verified."""
         # Arrange
         first_response = MagicMock()
         first_response.is_success = False
@@ -487,14 +489,23 @@ class TestLiteLlmManager:
         second_response.status_code = 409
         second_response.text = 'User with id test-user-id already exists'
 
+        # Mock GET request for user verification
+        user_exists_response = MagicMock()
+        user_exists_response.is_success = True
+        user_exists_response.json.return_value = {
+            'user_info': {'user_id': 'test-user-id'}
+        }
+
         mock_http_client.post.side_effect = [first_response, second_response]
+        mock_http_client.get.return_value = user_exists_response
 
         # Act
-        await LiteLlmManager._create_user(
+        result = await LiteLlmManager._create_user(
             mock_http_client, 'test@example.com', 'test-user-id'
         )
 
         # Assert
+        assert result is True
         mock_logger.warning.assert_any_call(
             'litellm_user_already_exists',
             extra={'user_id': 'test-user-id'},
@@ -504,10 +515,53 @@ class TestLiteLlmManager:
     @patch('storage.lite_llm_manager.logger')
     @patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'http://test.com')
     @patch('storage.lite_llm_manager.LITE_LLM_API_KEY', 'test-key')
-    async def test_create_user_already_exists_with_400_status_code(
+    async def test_create_user_already_exists_but_not_found_returns_false(
         self, mock_logger, mock_http_client
     ):
-        """Test _create_user handles 400 Bad Request when user already exists."""
+        """Test _create_user returns False when 'already exists' but user not found."""
+        # Arrange
+        first_response = MagicMock()
+        first_response.is_success = False
+        first_response.status_code = 400
+        first_response.text = 'duplicate email'
+
+        second_response = MagicMock()
+        second_response.is_success = False
+        second_response.status_code = 409
+        second_response.text = 'User with id test-user-id already exists'
+
+        # Mock GET request for user verification - user NOT found
+        user_not_found_response = MagicMock()
+        user_not_found_response.is_success = False
+        user_not_found_response.status_code = 404
+
+        mock_http_client.post.side_effect = [first_response, second_response]
+        mock_http_client.get.return_value = user_not_found_response
+
+        # Act
+        result = await LiteLlmManager._create_user(
+            mock_http_client, 'test@example.com', 'test-user-id'
+        )
+
+        # Assert
+        assert result is False
+        mock_logger.error.assert_any_call(
+            'litellm_user_claimed_exists_but_not_found',
+            extra={
+                'user_id': 'test-user-id',
+                'status_code': 409,
+                'text': 'User with id test-user-id already exists',
+            },
+        )
+
+    @pytest.mark.asyncio
+    @patch('storage.lite_llm_manager.logger')
+    @patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'http://test.com')
+    @patch('storage.lite_llm_manager.LITE_LLM_API_KEY', 'test-key')
+    async def test_create_user_already_exists_with_400_status_code_verified(
+        self, mock_logger, mock_http_client
+    ):
+        """Test _create_user returns True when user already exists (400) and is verified."""
         # Arrange
         first_response = MagicMock()
         first_response.is_success = False
@@ -519,17 +573,64 @@ class TestLiteLlmManager:
         second_response.status_code = 400
         second_response.text = 'User already exists'
 
+        # Mock GET request for user verification
+        user_exists_response = MagicMock()
+        user_exists_response.is_success = True
+        user_exists_response.json.return_value = {
+            'user_info': {'user_id': 'test-user-id'}
+        }
+
         mock_http_client.post.side_effect = [first_response, second_response]
+        mock_http_client.get.return_value = user_exists_response
 
         # Act
-        await LiteLlmManager._create_user(
+        result = await LiteLlmManager._create_user(
             mock_http_client, 'test@example.com', 'test-user-id'
         )
 
         # Assert
+        assert result is True
         mock_logger.warning.assert_any_call(
             'litellm_user_already_exists',
             extra={'user_id': 'test-user-id'},
+        )
+
+    @pytest.mark.asyncio
+    @patch('storage.lite_llm_manager.logger')
+    @patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'http://test.com')
+    @patch('storage.lite_llm_manager.LITE_LLM_API_KEY', 'test-key')
+    async def test_create_user_failure_returns_false(
+        self, mock_logger, mock_http_client
+    ):
+        """Test _create_user returns False on unexpected error."""
+        # Arrange
+        first_response = MagicMock()
+        first_response.is_success = False
+        first_response.status_code = 400
+        first_response.text = 'duplicate email'
+
+        second_response = MagicMock()
+        second_response.is_success = False
+        second_response.status_code = 500
+        second_response.text = 'Internal server error'
+
+        mock_http_client.post.side_effect = [first_response, second_response]
+
+        # Act
+        result = await LiteLlmManager._create_user(
+            mock_http_client, 'test@example.com', 'test-user-id'
+        )
+
+        # Assert
+        assert result is False
+        mock_logger.error.assert_any_call(
+            'error_creating_litellm_user',
+            extra={
+                'status_code': 500,
+                'text': 'Internal server error',
+                'user_id': 'test-user-id',
+                'email': None,
+            },
         )
 
     @pytest.mark.asyncio
@@ -679,8 +780,60 @@ class TestLiteLlmManager:
             )
 
     @pytest.mark.asyncio
-    async def test_generate_key_success(self, mock_http_client, mock_response):
-        """Test successful _generate_key operation."""
+    async def test_user_exists_returns_true(self, mock_http_client):
+        """Test _user_exists returns True when user is found."""
+        user_response = MagicMock()
+        user_response.is_success = True
+        user_response.json.return_value = {'user_info': {'user_id': 'test-user-id'}}
+        mock_http_client.get.return_value = user_response
+
+        with patch('storage.lite_llm_manager.LITE_LLM_API_KEY', 'test-key'):
+            with patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'http://test.com'):
+                result = await LiteLlmManager._user_exists(
+                    mock_http_client, 'test-user-id'
+                )
+                assert result is True
+
+    @pytest.mark.asyncio
+    async def test_user_exists_returns_false_when_not_found(self, mock_http_client):
+        """Test _user_exists returns False when user is not found."""
+        user_response = MagicMock()
+        user_response.is_success = False
+        user_response.status_code = 404
+        mock_http_client.get.return_value = user_response
+
+        with patch('storage.lite_llm_manager.LITE_LLM_API_KEY', 'test-key'):
+            with patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'http://test.com'):
+                result = await LiteLlmManager._user_exists(
+                    mock_http_client, 'test-user-id'
+                )
+                assert result is False
+
+    @pytest.mark.asyncio
+    async def test_user_exists_returns_false_on_mismatched_user_id(self, mock_http_client):
+        """Test _user_exists returns False when user_id doesn't match."""
+        user_response = MagicMock()
+        user_response.is_success = True
+        user_response.json.return_value = {'user_info': {'user_id': 'different-user-id'}}
+        mock_http_client.get.return_value = user_response
+
+        with patch('storage.lite_llm_manager.LITE_LLM_API_KEY', 'test-key'):
+            with patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'http://test.com'):
+                result = await LiteLlmManager._user_exists(
+                    mock_http_client, 'test-user-id'
+                )
+                assert result is False
+
+    @pytest.mark.asyncio
+    async def test_generate_key_success_with_user_verification(
+        self, mock_http_client, mock_response
+    ):
+        """Test successful _generate_key operation with user verification."""
+        # Mock user exists check
+        user_exists_response = MagicMock()
+        user_exists_response.is_success = True
+        user_exists_response.json.return_value = {'user_info': {'user_id': 'test-user-id'}}
+        mock_http_client.get.return_value = user_exists_response
         mock_http_client.post.return_value = mock_response
 
         with patch('storage.lite_llm_manager.LITE_LLM_API_KEY', 'test-key'):
@@ -691,9 +844,70 @@ class TestLiteLlmManager:
                     'test-team-id',
                     'test-alias',
                     {'test': 'metadata'},
+                    verify_user_exists=True,
                 )
 
                 assert result == 'test-api-key'
+                # Should have called GET for user verification
+                mock_http_client.get.assert_called_once()
+                mock_http_client.post.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('storage.lite_llm_manager.logger')
+    async def test_generate_key_blocked_when_user_not_found(
+        self, mock_logger, mock_http_client, mock_response
+    ):
+        """Test _generate_key returns None when user doesn't exist."""
+        # Mock user NOT found
+        user_not_found_response = MagicMock()
+        user_not_found_response.is_success = False
+        user_not_found_response.status_code = 404
+        mock_http_client.get.return_value = user_not_found_response
+
+        with patch('storage.lite_llm_manager.LITE_LLM_API_KEY', 'test-key'):
+            with patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'http://test.com'):
+                result = await LiteLlmManager._generate_key(
+                    mock_http_client,
+                    'test-user-id',
+                    'test-team-id',
+                    'test-alias',
+                    {'test': 'metadata'},
+                    verify_user_exists=True,
+                )
+
+                assert result is None
+                # Should NOT have called POST for key generation
+                mock_http_client.post.assert_not_called()
+                mock_logger.error.assert_called_with(
+                    'generate_key_blocked_user_not_found',
+                    extra={
+                        'user_id': 'test-user-id',
+                        'team_id': 'test-team-id',
+                        'key_alias': 'test-alias',
+                    },
+                )
+
+    @pytest.mark.asyncio
+    async def test_generate_key_success_skip_verification(
+        self, mock_http_client, mock_response
+    ):
+        """Test _generate_key skips user verification when disabled."""
+        mock_http_client.post.return_value = mock_response
+
+        with patch('storage.lite_llm_manager.LITE_LLM_API_KEY', 'test-key'):
+            with patch('storage.lite_llm_manager.LITE_LLM_API_URL', 'http://test.com'):
+                result = await LiteLlmManager._generate_key(
+                    mock_http_client,
+                    'test-user-id',
+                    'test-team-id',
+                    'test-alias',
+                    {'test': 'metadata'},
+                    verify_user_exists=False,
+                )
+
+                assert result == 'test-api-key'
+                # Should NOT have called GET for user verification
+                mock_http_client.get.assert_not_called()
                 mock_http_client.post.assert_called_once()
                 call_args = mock_http_client.post.call_args
                 assert 'http://test.com/key/generate' in call_args[0]
