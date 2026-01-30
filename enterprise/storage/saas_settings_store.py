@@ -202,17 +202,54 @@ class SaasSettingsStore(SettingsStore):
     ) -> Settings | None:
         logger.info(
             'saas_settings_store:update_settings_with_litellm_default:start',
-            extra={'user_id': self.user_id},
+            extra={
+                'user_id': self.user_id,
+                'LITE_LLM_API_KEY_set': LITE_LLM_API_KEY is not None,
+                'LITE_LLM_API_URL': LITE_LLM_API_URL,
+                'LOCAL_DEPLOYMENT': os.environ.get('LOCAL_DEPLOYMENT'),
+            },
         )
         if LITE_LLM_API_KEY is None or LITE_LLM_API_URL is None:
+            logger.warning(
+                'saas_settings_store:update_settings_with_litellm_default:missing_config',
+                extra={
+                    'user_id': self.user_id,
+                    'LITE_LLM_API_KEY_set': LITE_LLM_API_KEY is not None,
+                    'LITE_LLM_API_URL_set': LITE_LLM_API_URL is not None,
+                },
+            )
             return None
         local_deploy = os.environ.get('LOCAL_DEPLOYMENT', None)
         key = LITE_LLM_API_KEY
+        if local_deploy:
+            logger.info(
+                'saas_settings_store:update_settings_with_litellm_default:local_deployment_mode',
+                extra={'user_id': self.user_id, 'LOCAL_DEPLOYMENT': local_deploy},
+            )
         if not local_deploy:
             # Get user info to add to litellm
             token_manager = TokenManager()
-            keycloak_user_info = (
-                await token_manager.get_user_info_from_user_id(self.user_id) or {}
+            try:
+                keycloak_user_info = (
+                    await token_manager.get_user_info_from_user_id(self.user_id) or {}
+                )
+            except Exception as e:
+                logger.error(
+                    'saas_settings_store:update_settings_with_litellm_default:keycloak_error',
+                    extra={
+                        'user_id': self.user_id,
+                        'error': str(e),
+                        'error_type': type(e).__name__,
+                    },
+                )
+                raise
+
+            logger.debug(
+                'saas_settings_store:update_settings_with_litellm_default:keycloak_info_retrieved',
+                extra={
+                    'user_id': self.user_id,
+                    'has_email': 'email' in keycloak_user_info,
+                },
             )
 
             async with httpx.AsyncClient(
@@ -223,10 +260,37 @@ class SaasSettingsStore(SettingsStore):
             ) as client:
                 # Get the previous max budget to prevent accidental loss
                 # In Litellm a get always succeeds, regardless of whether the user actually exists
-                response = await client.get(
-                    f'{LITE_LLM_API_URL}/user/info?user_id={self.user_id}'
+                user_info_url = f'{LITE_LLM_API_URL}/user/info?user_id={self.user_id}'
+                logger.debug(
+                    'saas_settings_store:update_settings_with_litellm_default:fetching_user_info',
+                    extra={'user_id': self.user_id, 'url': user_info_url},
                 )
-                response.raise_for_status()
+                try:
+                    response = await client.get(user_info_url)
+                    response.raise_for_status()
+                except httpx.HTTPStatusError as e:
+                    logger.error(
+                        'saas_settings_store:update_settings_with_litellm_default:user_info_http_error',
+                        extra={
+                            'user_id': self.user_id,
+                            'status_code': e.response.status_code,
+                            'response_text': e.response.text[:500] if e.response.text else None,
+                            'url': user_info_url,
+                        },
+                    )
+                    raise
+                except httpx.RequestError as e:
+                    logger.error(
+                        'saas_settings_store:update_settings_with_litellm_default:user_info_request_error',
+                        extra={
+                            'user_id': self.user_id,
+                            'error': str(e),
+                            'error_type': type(e).__name__,
+                            'url': user_info_url,
+                        },
+                    )
+                    raise
+
                 response_json = response.json()
                 user_info = response_json.get('user_info') or {}
                 logger.info(
@@ -265,18 +329,39 @@ class SaasSettingsStore(SettingsStore):
 
                 # We explicitly delete here to guard against odd inherited settings on upgrade.
                 # We don't care if this fails with a 404
-                await client.post(
+                delete_response = await client.post(
                     f'{LITE_LLM_API_URL}/user/delete', json={'user_ids': [self.user_id]}
+                )
+                logger.debug(
+                    'saas_settings_store:update_settings_with_litellm_default:user_delete_response',
+                    extra={
+                        'user_id': self.user_id,
+                        'status_code': delete_response.status_code,
+                    },
                 )
 
                 # Create the new litellm user
+                logger.debug(
+                    'saas_settings_store:update_settings_with_litellm_default:creating_user',
+                    extra={
+                        'user_id': self.user_id,
+                        'email': email,
+                        'max_budget': max_budget,
+                        'spend': spend,
+                    },
+                )
                 response = await self._create_user_in_lite_llm(
                     client, email, max_budget, spend
                 )
                 if not response.is_success:
                     logger.warning(
                         'duplicate_user_email',
-                        extra={'user_id': self.user_id, 'email': email},
+                        extra={
+                            'user_id': self.user_id,
+                            'email': email,
+                            'status_code': response.status_code,
+                            'response_text': response.text[:500] if response.text else None,
+                        },
                     )
                     # Litellm insists on unique email addresses - it is possible the email address was registered with a different user.
                     response = await self._create_user_in_lite_llm(
