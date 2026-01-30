@@ -61,8 +61,8 @@ def get_session_expired_message(username: str | None = None) -> str:
         A formatted session expired message
     """
     if username:
-        return f'@{username} your session has expired. Please log out and log in again at [OpenHands Cloud]({HOST_URL}) to refresh your session, then try again.'
-    return f'Your session has expired. Please log out and log in again at [OpenHands Cloud]({HOST_URL}) to refresh your session, then try again.'
+        return f'@{username} your session has expired. Please login again at [OpenHands Cloud]({HOST_URL}) and try again.'
+    return f'Your session has expired. Please login again at [OpenHands Cloud]({HOST_URL}) and try again.'
 
 
 # Toggle for solvability report feature
