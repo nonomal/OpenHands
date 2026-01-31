@@ -2,8 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { IoClose, IoChevronDown, IoChevronForward } from "react-icons/io5";
 import { ModalBackdrop } from "#/components/shared/modals/modal-backdrop";
-import { ModalBody } from "#/components/shared/modals/modal-body";
-import { ModalButton } from "#/components/shared/buttons/modal-button";
+import { BrandButton } from "#/components/features/settings/brand-button";
 import { I18nKey } from "#/i18n/declaration";
 import { PluginSpec } from "#/api/conversation-service/v1-conversation-service.types";
 import { cn } from "#/utils/utils";
@@ -75,11 +74,11 @@ export function PluginLaunchModal({
   };
 
   const getPluginDisplayName = (plugin: PluginSpec): string => {
-    const { source, repo_path } = plugin;
+    const { source, repo_path: repoPath } = plugin;
 
     // If repo_path is specified, show the plugin name from the path
-    if (repo_path) {
-      const pathParts = repo_path.split("/");
+    if (repoPath) {
+      const pathParts = repoPath.split("/");
       const pluginName = pathParts[pathParts.length - 1];
       return pluginName;
     }
@@ -116,6 +115,8 @@ export function PluginLaunchModal({
     paramValue: unknown,
   ) => {
     const inputId = `plugin-${pluginIndex}-param-${paramKey}`;
+    const inputClasses =
+      "rounded-md border border-tertiary bg-base-secondary px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary";
 
     if (typeof paramValue === "boolean") {
       return (
@@ -128,9 +129,9 @@ export function PluginLaunchModal({
             onChange={(e) =>
               updateParameter(pluginIndex, paramKey, e.target.checked)
             }
-            className="h-4 w-4 rounded border-neutral-600 bg-neutral-700 text-blue-500 focus:ring-blue-500"
+            className="h-4 w-4 rounded border-tertiary bg-base-secondary accent-primary"
           />
-          <label htmlFor={inputId} className="text-sm text-neutral-300">
+          <label htmlFor={inputId} className="text-sm">
             {paramKey}
           </label>
         </div>
@@ -140,7 +141,7 @@ export function PluginLaunchModal({
     if (typeof paramValue === "number") {
       return (
         <div key={paramKey} className="flex flex-col gap-1 py-2">
-          <label htmlFor={inputId} className="text-sm text-neutral-400">
+          <label htmlFor={inputId} className="text-sm text-tertiary">
             {paramKey}
           </label>
           <input
@@ -155,7 +156,7 @@ export function PluginLaunchModal({
                 parseFloat(e.target.value) || 0,
               )
             }
-            className="rounded-md border border-neutral-600 bg-neutral-700 px-3 py-2 text-sm text-neutral-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className={inputClasses}
           />
         </div>
       );
@@ -164,7 +165,7 @@ export function PluginLaunchModal({
     // Default: string input
     return (
       <div key={paramKey} className="flex flex-col gap-1 py-2">
-        <label htmlFor={inputId} className="text-sm text-neutral-400">
+        <label htmlFor={inputId} className="text-sm text-tertiary">
           {paramKey}
         </label>
         <input
@@ -175,7 +176,7 @@ export function PluginLaunchModal({
           onChange={(e) =>
             updateParameter(pluginIndex, paramKey, e.target.value)
           }
-          className="rounded-md border border-neutral-600 bg-neutral-700 px-3 py-2 text-sm text-neutral-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className={inputClasses}
         />
       </div>
     );
@@ -193,33 +194,31 @@ export function PluginLaunchModal({
     return (
       <div
         key={`plugin-${originalIndex}`}
-        className="rounded-lg border border-neutral-700 bg-neutral-800"
+        className="rounded-lg border border-tertiary bg-tertiary"
       >
         <button
           type="button"
           onClick={() => toggleSection(originalIndex)}
-          className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-neutral-750"
+          className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-base-tertiary rounded-t-lg"
           data-testid={`plugin-section-${originalIndex}`}
         >
-          <span className="font-medium text-neutral-200">
-            {getPluginDisplayName(plugin)}
-          </span>
+          <span className="font-medium">{getPluginDisplayName(plugin)}</span>
           {isExpanded ? (
-            <IoChevronDown className="h-5 w-5 text-neutral-400" />
+            <IoChevronDown className="h-5 w-5 text-tertiary" />
           ) : (
-            <IoChevronForward className="h-5 w-5 text-neutral-400" />
+            <IoChevronForward className="h-5 w-5 text-tertiary" />
           )}
         </button>
 
         {isExpanded && (
-          <div className="border-t border-neutral-700 px-4 py-3">
+          <div className="border-t border-tertiary px-4 py-3">
             {plugin.ref && (
-              <div className="mb-2 text-xs text-neutral-500">
+              <div className="mb-2 text-xs text-tertiary">
                 {t(I18nKey.LAUNCH$PLUGIN_REF)} {plugin.ref}
               </div>
             )}
             {plugin.repo_path && (
-              <div className="mb-2 text-xs text-neutral-500">
+              <div className="mb-2 text-xs text-tertiary">
                 {t(I18nKey.LAUNCH$PLUGIN_PATH)} {plugin.repo_path}
               </div>
             )}
@@ -241,31 +240,28 @@ export function PluginLaunchModal({
 
   return (
     <ModalBackdrop onClose={onClose}>
-      <ModalBody
-        testID="plugin-launch-modal"
-        className="max-h-[80vh] overflow-hidden flex flex-col"
-        width="medium"
+      <div
+        data-testid="plugin-launch-modal"
+        className="bg-base-secondary p-6 rounded-xl flex flex-col gap-4 border border-tertiary w-[500px] max-w-[90vw] max-h-[80vh]"
       >
         <div className="flex w-full items-center justify-between">
-          <h2 className="text-xl font-semibold text-neutral-100">
+          <h2 className="text-xl font-semibold">
             {t(I18nKey.LAUNCH$MODAL_TITLE)} {modalTitle}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200"
+            className="rounded-md p-1 text-tertiary hover:text-secondary hover:bg-tertiary"
             aria-label="Close"
             data-testid="close-button"
           >
-            <IoClose className="h-6 w-6" />
+            <IoClose className="h-5 w-5" />
           </button>
         </div>
 
-        {message && (
-          <p className="w-full text-sm text-neutral-400">{message}</p>
-        )}
+        {message && <p className="text-sm text-tertiary">{message}</p>}
 
-        <div className="flex-1 overflow-y-auto w-full custom-scrollbar">
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
           {pluginsWithParams.length > 0 && (
             <div className="space-y-3">
               {pluginConfigs.map((plugin, index) =>
@@ -276,7 +272,7 @@ export function PluginLaunchModal({
 
           {pluginsWithoutParams.length > 0 && (
             <div className={cn(pluginsWithParams.length > 0 && "mt-4")}>
-              <h3 className="mb-2 text-sm font-medium text-neutral-400">
+              <h3 className="mb-2 text-sm font-medium text-tertiary">
                 {pluginsWithParams.length > 0
                   ? t(I18nKey.LAUNCH$ADDITIONAL_PLUGINS)
                   : t(I18nKey.LAUNCH$PLUGINS)}
@@ -285,12 +281,12 @@ export function PluginLaunchModal({
                 {pluginsWithoutParams.map((plugin, index) => (
                   <div
                     key={`simple-plugin-${index}`}
-                    className="rounded-md bg-neutral-800 px-3 py-2 text-sm"
+                    className="rounded-md bg-tertiary px-3 py-2 text-sm"
                   >
-                    <div className="text-neutral-200 font-medium">
+                    <div className="font-medium">
                       {getPluginDisplayName(plugin)}
                     </div>
-                    <div className="text-xs text-neutral-500 mt-1">
+                    <div className="text-xs text-tertiary mt-1">
                       {getPluginSourceInfo(plugin)}
                       {plugin.repo_path && (
                         <span className="ml-1">/ {plugin.repo_path}</span>
@@ -306,23 +302,21 @@ export function PluginLaunchModal({
           )}
         </div>
 
-        <div className="flex w-full justify-end gap-3 pt-4 border-t border-neutral-700">
-          <ModalButton
+        <div className="flex w-full justify-end gap-2 pt-4 border-t border-tertiary">
+          <BrandButton
             testId="start-conversation-button"
-            text={
-              isLoading
-                ? t(I18nKey.LAUNCH$STARTING)
-                : t(I18nKey.LAUNCH$START_CONVERSATION)
-            }
+            type="button"
+            variant="primary"
             onClick={handleStartConversation}
-            disabled={isLoading}
-            className={cn(
-              "bg-blue-600 text-white hover:bg-blue-700 px-6",
-              isLoading && "opacity-50 cursor-not-allowed",
-            )}
-          />
+            isDisabled={isLoading}
+            className="px-4"
+          >
+            {isLoading
+              ? t(I18nKey.LAUNCH$STARTING)
+              : t(I18nKey.LAUNCH$START_CONVERSATION)}
+          </BrandButton>
         </div>
-      </ModalBody>
+      </div>
     </ModalBackdrop>
   );
 }
