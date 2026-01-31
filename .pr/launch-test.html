@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Launch Route Manual Tests - PR #12696</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #eaeaea;
+    }
+    h1 {
+      color: #4ecdc4;
+      border-bottom: 2px solid #4ecdc4;
+      padding-bottom: 10px;
+    }
+    h2 {
+      color: #ff6b6b;
+      margin-top: 30px;
+    }
+    .config {
+      background: #16213e;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 25px;
+    }
+    .config label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    .config input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #4ecdc4;
+      border-radius: 4px;
+      background: #0f0f23;
+      color: #eaeaea;
+      font-size: 14px;
+    }
+    .test-case {
+      background: #16213e;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      border-left: 4px solid #4ecdc4;
+    }
+    .test-case h3 {
+      margin-top: 0;
+      color: #f8f8f2;
+    }
+    .test-case p {
+      margin: 10px 0;
+      color: #bbb;
+    }
+    .test-case strong {
+      color: #ff79c6;
+    }
+    .test-case code {
+      background: #0f0f23;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 12px;
+      color: #50fa7b;
+    }
+    .test-case button {
+      background: #4ecdc4;
+      color: #1a1a2e;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    .test-case button:hover {
+      background: #45b7b0;
+    }
+    .error-case {
+      border-left-color: #ff6b6b;
+    }
+    .error-case button {
+      background: #ff6b6b;
+    }
+    .error-case button:hover {
+      background: #e55a5a;
+    }
+    .expected {
+      background: #0f0f23;
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 10px;
+      font-size: 13px;
+    }
+    .instructions {
+      background: #2d2d44;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    .instructions ol {
+      margin: 0;
+      padding-left: 20px;
+    }
+    .instructions li {
+      margin: 8px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🚀 Launch Route Manual Tests</h1>
+  <p>PR #12696 - Add /launch route for starting conversations with plugins</p>
+
+  <div class="config">
+    <label for="baseUrl">Base URL (your frontend server):</label>
+    <input type="text" id="baseUrl" value="http://localhost:12001" placeholder="http://localhost:12001">
+  </div>
+
+  <div class="instructions">
+    <h3>📋 Testing Instructions</h3>
+    <ol>
+      <li>Start the frontend dev server: <code>cd frontend && npm run dev</code></li>
+      <li>Update the "Base URL" above to match your dev server URL</li>
+      <li>Click each "Launch Test" button to open the test scenario</li>
+      <li>Verify the behavior matches the "Expected" description</li>
+    </ol>
+  </div>
+
+  <h2>✅ Success Scenarios</h2>
+
+  <div class="test-case" id="test1">
+    <h3>Test 1: Single Plugin with Parameters</h3>
+    <p><strong>Plugin:</strong> github:All-Hands-AI/test-plugin</p>
+    <p><strong>Parameters:</strong> apiKey (string), maxRetries (number), debugMode (boolean)</p>
+    <div class="expected">
+      <strong>Expected:</strong> Modal shows with expandable plugin section. Form fields for each parameter type. Clicking "Start Conversation" creates conversation and redirects.
+    </div>
+    <button onclick="runTest1()">Launch Test</button>
+  </div>
+
+  <div class="test-case" id="test2">
+    <h3>Test 2: Multiple Plugins (Mixed Parameters)</h3>
+    <p><strong>Plugins:</strong></p>
+    <ul>
+      <li>github:owner/plugin-with-params (has parameters)</li>
+      <li>github:owner/plugin-no-params (no parameters)</li>
+    </ul>
+    <div class="expected">
+      <strong>Expected:</strong> Modal shows plugin-with-params in expandable section, plugin-no-params in "Additional Plugins" list.
+    </div>
+    <button onclick="runTest2()">Launch Test</button>
+  </div>
+
+  <div class="test-case" id="test3">
+    <h3>Test 3: Multiple Plugins (No Parameters)</h3>
+    <p><strong>Plugins:</strong> Two plugins with no parameters</p>
+    <div class="expected">
+      <strong>Expected:</strong> Modal shows both plugins in a simple list under "Plugins" heading.
+    </div>
+    <button onclick="runTest3()">Launch Test</button>
+  </div>
+
+  <div class="test-case" id="test4">
+    <h3>Test 4: Single Plugin (No Parameters)</h3>
+    <p><strong>Plugin:</strong> github:owner/simple-plugin</p>
+    <div class="expected">
+      <strong>Expected:</strong> Modal shows plugin name, no parameter forms, just "Start Conversation" button.
+    </div>
+    <button onclick="runTest4()">Launch Test</button>
+  </div>
+
+  <div class="test-case" id="test5">
+    <h3>Test 5: Simple Params Format (Dev/Testing)</h3>
+    <p><strong>URL Params:</strong> plugin_source=github:owner/dev-repo&plugin_ref=v2.0</p>
+    <div class="expected">
+      <strong>Expected:</strong> Modal shows plugin from simple URL params (alternative to base64).
+    </div>
+    <button onclick="runTest5()">Launch Test</button>
+  </div>
+
+  <div class="test-case" id="test6">
+    <h3>Test 6: With Display Message</h3>
+    <p><strong>Plugin:</strong> github:owner/repo</p>
+    <p><strong>Message:</strong> "Welcome! This plugin helps you automate deployments."</p>
+    <div class="expected">
+      <strong>Expected:</strong> Modal shows the custom message below the title.
+    </div>
+    <button onclick="runTest6()">Launch Test</button>
+  </div>
+
+  <h2>❌ Error Scenarios</h2>
+
+  <div class="test-case error-case" id="test7">
+    <h3>Test 7: Error - No Plugins Specified</h3>
+    <p><strong>URL:</strong> /launch (no query params)</p>
+    <div class="expected">
+      <strong>Expected:</strong> Error page with "No plugins were specified" message and "Go Home" button.
+    </div>
+    <button onclick="runTest7()">Launch Test</button>
+  </div>
+
+  <div class="test-case error-case" id="test8">
+    <h3>Test 8: Error - Invalid Base64</h3>
+    <p><strong>URL:</strong> /launch?plugins=not-valid-base64!!!</p>
+    <div class="expected">
+      <strong>Expected:</strong> Error page with "plugin configuration is invalid" message.
+    </div>
+    <button onclick="runTest8()">Launch Test</button>
+  </div>
+
+  <div class="test-case error-case" id="test9">
+    <h3>Test 9: XSS Prevention Test</h3>
+    <p><strong>Message:</strong> Contains &lt;script&gt; tag</p>
+    <div class="expected">
+      <strong>Expected:</strong> Script tag is stripped, only safe text displayed.
+    </div>
+    <button onclick="runTest9()">Launch Test</button>
+  </div>
+
+  <script>
+    function getBaseUrl() {
+      return document.getElementById('baseUrl').value.replace(/\/$/, '');
+    }
+
+    function encodePlugins(plugins) {
+      return btoa(JSON.stringify(plugins));
+    }
+
+    function openLaunchUrl(params) {
+      const baseUrl = getBaseUrl();
+      const url = `${baseUrl}/launch${params}`;
+      window.open(url, '_blank');
+    }
+
+    // Test 1: Single plugin with parameters
+    function runTest1() {
+      const plugins = [{
+        source: "github:All-Hands-AI/test-plugin",
+        ref: "main",
+        parameters: {
+          apiKey: "your-api-key-here",
+          maxRetries: 3,
+          debugMode: false
+        }
+      }];
+      openLaunchUrl(`?plugins=${encodePlugins(plugins)}`);
+    }
+
+    // Test 2: Multiple plugins (mixed)
+    function runTest2() {
+      const plugins = [
+        {
+          source: "github:owner/plugin-with-params",
+          parameters: { configOption: "enabled", timeout: 30 }
+        },
+        {
+          source: "github:owner/plugin-no-params"
+        }
+      ];
+      openLaunchUrl(`?plugins=${encodePlugins(plugins)}`);
+    }
+
+    // Test 3: Multiple plugins (no params)
+    function runTest3() {
+      const plugins = [
+        { source: "github:org/utility-plugin" },
+        { source: "github:org/helper-plugin", ref: "v1.2.3" }
+      ];
+      openLaunchUrl(`?plugins=${encodePlugins(plugins)}`);
+    }
+
+    // Test 4: Single plugin (no params)
+    function runTest4() {
+      const plugins = [{ source: "github:owner/simple-plugin" }];
+      openLaunchUrl(`?plugins=${encodePlugins(plugins)}`);
+    }
+
+    // Test 5: Simple params format
+    function runTest5() {
+      openLaunchUrl('?plugin_source=github:owner/dev-repo&plugin_ref=v2.0');
+    }
+
+    // Test 6: With message
+    function runTest6() {
+      const plugins = [{ source: "github:owner/deploy-plugin" }];
+      const message = "Welcome! This plugin helps you automate deployments.";
+      openLaunchUrl(`?plugins=${encodePlugins(plugins)}&message=${encodeURIComponent(message)}`);
+    }
+
+    // Test 7: No plugins
+    function runTest7() {
+      openLaunchUrl('');
+    }
+
+    // Test 8: Invalid base64
+    function runTest8() {
+      openLaunchUrl('?plugins=not-valid-base64!!!');
+    }
+
+    // Test 9: XSS prevention
+    function runTest9() {
+      const plugins = [{ source: "github:owner/safe-plugin" }];
+      const maliciousMessage = '<script>alert("xss")</script>This text should appear safely';
+      openLaunchUrl(`?plugins=${encodePlugins(plugins)}&message=${encodeURIComponent(maliciousMessage)}`);
+    }
+  </script>
+</body>
+</html>
