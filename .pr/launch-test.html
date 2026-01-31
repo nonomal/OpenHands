@@ -220,6 +220,21 @@
     <button onclick="runTest1()">Launch Test</button>
   </div>
 
+  <div class="test-case" id="test1b">
+    <h3>Test 1b: City Weather Plugin with Command Invocation</h3>
+    <p><strong>Plugin:</strong> github:jpshackelford/openhands-sample-plugins</p>
+    <p><strong>Path:</strong> plugins/city-weather</p>
+    <p><strong>Description:</strong> Load the plugin AND invoke the /city-weather:now command with a city parameter.</p>
+    <div style="margin: 12px 0;">
+      <label for="cityInput" style="display: block; margin-bottom: 8px; color: var(--color-content-2);">Enter City Name:</label>
+      <input type="text" id="cityInput" value="Tokyo" placeholder="e.g., Tokyo, London, New York" style="width: 100%; padding: 12px 14px; border: 1px solid var(--color-tertiary); border-radius: 8px; background: var(--color-base); color: var(--color-content); font-family: inherit; font-size: 14px;">
+    </div>
+    <div class="expected">
+      <strong>Expected:</strong> Modal shows city-weather plugin with the command message. Clicking "Start Conversation" creates conversation with the plugin loaded AND sends "/city-weather:now [CITY]" as the initial message.
+    </div>
+    <button onclick="runTest1b()">Launch Test with City</button>
+  </div>
+
   <div class="test-case" id="test2">
     <h3>Test 2: Magic Test Plugin</h3>
     <p><strong>Plugin:</strong> github:jpshackelford/openhands-sample-plugins</p>
@@ -325,6 +340,17 @@
         repo_path: "plugins/city-weather"
       }];
       openLaunchUrl(`?plugins=${encodePlugins(plugins)}`);
+    }
+
+    // Test 1b: City Weather Plugin with Command Invocation
+    function runTest1b() {
+      const city = document.getElementById('cityInput').value.trim() || 'Tokyo';
+      const plugins = [{
+        source: "github:jpshackelford/openhands-sample-plugins",
+        repo_path: "plugins/city-weather"
+      }];
+      const message = `/city-weather:now ${city}`;
+      openLaunchUrl(`?plugins=${encodePlugins(plugins)}&message=${encodeURIComponent(message)}`);
     }
 
     // Test 2: Magic Test Plugin

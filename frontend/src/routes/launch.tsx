@@ -151,10 +151,16 @@ export default function LaunchRoute() {
     [searchParams],
   );
 
-  const handleStartConversation = async (plugins: PluginSpec[]) => {
+  const handleStartConversation = async (
+    plugins: PluginSpec[],
+    initialMessage?: string,
+  ) => {
     setCreationError(null);
     try {
-      const result = await createConversation.mutateAsync({ plugins });
+      const result = await createConversation.mutateAsync({
+        plugins,
+        query: initialMessage,
+      });
       navigate(`/conversations/${result.conversation_id}`);
     } catch {
       setCreationError(t(I18nKey.LAUNCH$ERROR_CREATION_UNKNOWN));

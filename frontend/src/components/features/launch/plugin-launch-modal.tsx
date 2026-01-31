@@ -11,7 +11,7 @@ interface PluginLaunchModalProps {
   plugins: PluginSpec[];
   message?: string;
   isLoading?: boolean;
-  onStartConversation: (plugins: PluginSpec[]) => void;
+  onStartConversation: (plugins: PluginSpec[], initialMessage?: string) => void;
   onClose: () => void;
 }
 
@@ -106,7 +106,7 @@ export function PluginLaunchModal({
   };
 
   const handleStartConversation = () => {
-    onStartConversation(pluginConfigs);
+    onStartConversation(pluginConfigs, message);
   };
 
   const renderParameterInput = (

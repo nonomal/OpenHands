@@ -341,6 +341,32 @@ describe("LaunchRoute", () => {
               parameters: { apiKey: "test" },
             },
           ],
+          query: undefined,
+        });
+      });
+    });
+
+    it("should call createConversation with plugins and initial message when message is provided", async () => {
+      const user = userEvent.setup();
+      const plugins = [{ source: "github:owner/repo" }];
+      const encoded = btoa(JSON.stringify(plugins));
+      const message = "/city-weather:now Tokyo";
+
+      renderLaunchRoute(`?plugins=${encoded}&message=${encodeURIComponent(message)}`);
+
+      await user.click(screen.getByTestId("start-conversation-button"));
+
+      await waitFor(() => {
+        expect(mockMutateAsync).toHaveBeenCalledWith({
+          plugins: [
+            {
+              source: "github:owner/repo",
+              ref: null,
+              repo_path: null,
+              parameters: null,
+            },
+          ],
+          query: "/city-weather:now Tokyo",
         });
       });
     });

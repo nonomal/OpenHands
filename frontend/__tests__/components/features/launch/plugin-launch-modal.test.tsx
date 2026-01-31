@@ -349,10 +349,28 @@ describe("PluginLaunchModal", () => {
       await user.click(screen.getByTestId("start-conversation-button"));
 
       expect(mockOnStartConversation).toHaveBeenCalledTimes(1);
-      const calledWith = mockOnStartConversation.mock.calls[0][0];
-      expect(calledWith[0].source).toBe("github:owner/repo");
-      expect(calledWith[0].ref).toBe("main");
-      expect(calledWith[0].parameters.apiKey).toBe("updated-key");
+      const calledWithPlugins = mockOnStartConversation.mock.calls[0][0];
+      const calledWithMessage = mockOnStartConversation.mock.calls[0][1];
+      expect(calledWithPlugins[0].source).toBe("github:owner/repo");
+      expect(calledWithPlugins[0].ref).toBe("main");
+      expect(calledWithPlugins[0].parameters.apiKey).toBe("updated-key");
+      expect(calledWithMessage).toBeUndefined();
+    });
+
+    it("should call onStartConversation with message when provided", async () => {
+      const user = userEvent.setup();
+      renderModal(
+        [{ source: "github:owner/repo" }],
+        { message: "/city-weather:now Tokyo" },
+      );
+
+      await user.click(screen.getByTestId("start-conversation-button"));
+
+      expect(mockOnStartConversation).toHaveBeenCalledTimes(1);
+      const calledWithPlugins = mockOnStartConversation.mock.calls[0][0];
+      const calledWithMessage = mockOnStartConversation.mock.calls[0][1];
+      expect(calledWithPlugins[0].source).toBe("github:owner/repo");
+      expect(calledWithMessage).toBe("/city-weather:now Tokyo");
     });
 
     it("should show 'Starting...' text when loading", () => {
