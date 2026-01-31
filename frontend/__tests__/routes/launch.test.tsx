@@ -88,8 +88,9 @@ describe("LaunchRoute", () => {
       renderLaunchRoute(`?plugins=${encoded}`);
 
       expect(screen.getByTestId("plugin-launch-modal")).toBeInTheDocument();
-      expect(screen.getByText("owner/repo1")).toBeInTheDocument();
-      expect(screen.getByText("owner/repo2")).toBeInTheDocument();
+      // Plugin names appear multiple times, use getAllByText
+      expect(screen.getAllByText("owner/repo1").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("owner/repo2").length).toBeGreaterThan(0);
     });
 
     it("should show error for invalid base64 encoding", () => {
@@ -130,7 +131,8 @@ describe("LaunchRoute", () => {
       renderLaunchRoute("?plugin_source=github:owner/simple-repo");
 
       expect(screen.getByTestId("plugin-launch-modal")).toBeInTheDocument();
-      expect(screen.getByText("owner/simple-repo")).toBeInTheDocument();
+      // Plugin name appears multiple times, use getAllByText
+      expect(screen.getAllByText("owner/simple-repo").length).toBeGreaterThan(0);
     });
 
     it("should parse simple params with ref", () => {
@@ -139,7 +141,8 @@ describe("LaunchRoute", () => {
       );
 
       expect(screen.getByTestId("plugin-launch-modal")).toBeInTheDocument();
-      expect(screen.getByText("owner/repo")).toBeInTheDocument();
+      // Plugin name appears multiple times, use getAllByText
+      expect(screen.getAllByText("owner/repo").length).toBeGreaterThan(0);
     });
 
     it("should show error when no plugins specified", () => {
@@ -298,8 +301,9 @@ describe("LaunchRoute", () => {
       renderLaunchRoute(`?plugins=${encoded}`);
 
       expect(screen.getByText("LAUNCH$PLUGINS")).toBeInTheDocument();
-      expect(screen.getByText("owner/repo-without-params")).toBeInTheDocument();
-      expect(screen.getByText("owner/another-repo")).toBeInTheDocument();
+      // Plugin names appear multiple times (title area and list), use getAllByText
+      expect(screen.getAllByText("owner/repo-without-params").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("owner/another-repo").length).toBeGreaterThan(0);
     });
 
     it("should show additional plugins label when mixing params and no-params plugins", () => {

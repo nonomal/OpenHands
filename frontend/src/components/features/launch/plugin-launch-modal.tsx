@@ -75,13 +75,33 @@ export function PluginLaunchModal({
   };
 
   const getPluginDisplayName = (plugin: PluginSpec): string => {
-    const { source } = plugin;
+    const { source, repo_path } = plugin;
+
+    // If repo_path is specified, show the plugin name from the path
+    if (repo_path) {
+      const pathParts = repo_path.split("/");
+      const pluginName = pathParts[pathParts.length - 1];
+      return pluginName;
+    }
+
+    // Otherwise show the repo name
     if (source.startsWith("github:")) {
       return source.replace("github:", "");
     }
     if (source.includes("/")) {
       const parts = source.split("/");
       return parts[parts.length - 1].replace(".git", "");
+    }
+    return source;
+  };
+
+  const getPluginSourceInfo = (plugin: PluginSpec): string => {
+    const { source } = plugin;
+    if (source.startsWith("github:")) {
+      return source.replace("github:", "");
+    }
+    if (source.includes("github.com/")) {
+      return source.split("github.com/")[1]?.replace(".git", "") || source;
     }
     return source;
   };
@@ -265,14 +285,20 @@ export function PluginLaunchModal({
                 {pluginsWithoutParams.map((plugin, index) => (
                   <div
                     key={`simple-plugin-${index}`}
-                    className="rounded-md bg-neutral-800 px-3 py-2 text-sm text-neutral-300"
+                    className="rounded-md bg-neutral-800 px-3 py-2 text-sm"
                   >
-                    {getPluginDisplayName(plugin)}
-                    {plugin.ref && (
-                      <span className="ml-2 text-xs text-neutral-500">
-                        @ {plugin.ref}
-                      </span>
-                    )}
+                    <div className="text-neutral-200 font-medium">
+                      {getPluginDisplayName(plugin)}
+                    </div>
+                    <div className="text-xs text-neutral-500 mt-1">
+                      {getPluginSourceInfo(plugin)}
+                      {plugin.repo_path && (
+                        <span className="ml-1">/ {plugin.repo_path}</span>
+                      )}
+                      {plugin.ref && (
+                        <span className="ml-2">@ {plugin.ref}</span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

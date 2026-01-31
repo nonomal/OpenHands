@@ -38,10 +38,19 @@ describe("PluginLaunchModal", () => {
   });
 
   describe("Plugin Display Name Extraction", () => {
-    it("should extract name from github: prefix", () => {
+    it("should extract plugin name from repo_path when provided", () => {
+      renderModal([{ source: "github:owner/repo", repo_path: "plugins/my-plugin" }]);
+
+      // Plugin name should be "my-plugin" from the path
+      expect(screen.getByText("my-plugin")).toBeInTheDocument();
+    });
+
+    it("should show repo path when no repo_path (repo IS the plugin)", () => {
       renderModal([{ source: "github:owner/my-plugin" }]);
 
-      expect(screen.getByText("owner/my-plugin")).toBeInTheDocument();
+      // When no repo_path, the whole repo is the plugin, show "owner/my-plugin"
+      const elements = screen.getAllByText("owner/my-plugin");
+      expect(elements.length).toBeGreaterThan(0);
     });
 
     it("should extract name from git URL", () => {
@@ -49,13 +58,15 @@ describe("PluginLaunchModal", () => {
         { source: "https://github.com/owner/repo-name.git" },
       ]);
 
-      expect(screen.getByText("repo-name")).toBeInTheDocument();
+      const elements = screen.getAllByText("repo-name");
+      expect(elements.length).toBeGreaterThan(0);
     });
 
     it("should display full source when no special format", () => {
       renderModal([{ source: "local-plugin" }]);
 
-      expect(screen.getByText("local-plugin")).toBeInTheDocument();
+      const elements = screen.getAllByText("local-plugin");
+      expect(elements.length).toBeGreaterThan(0);
     });
   });
 
@@ -271,8 +282,9 @@ describe("PluginLaunchModal", () => {
       ]);
 
       expect(screen.getByText("LAUNCH$PLUGINS")).toBeInTheDocument();
-      expect(screen.getByText("owner/plugin1")).toBeInTheDocument();
-      expect(screen.getByText("owner/plugin2")).toBeInTheDocument();
+      // When no repo_path, the full repo path is shown (may appear multiple times)
+      expect(screen.getAllByText("owner/plugin1").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("owner/plugin2").length).toBeGreaterThan(0);
     });
 
     it("should show 'Additional Plugins' when mixing plugins with and without params", () => {
@@ -282,7 +294,8 @@ describe("PluginLaunchModal", () => {
       ]);
 
       expect(screen.getByText("LAUNCH$ADDITIONAL_PLUGINS")).toBeInTheDocument();
-      expect(screen.getByText("owner/without-params")).toBeInTheDocument();
+      // When no repo_path, the full repo path is shown
+      expect(screen.getAllByText("owner/without-params").length).toBeGreaterThan(0);
     });
 
     it("should show ref in simple plugin list", () => {
@@ -291,6 +304,19 @@ describe("PluginLaunchModal", () => {
       ]);
 
       expect(screen.getByText("@ main")).toBeInTheDocument();
+    });
+
+    it("should show repo_path in simple plugin list", () => {
+      renderModal([
+        { source: "github:owner/repo", repo_path: "plugins/city-weather" },
+      ]);
+
+      // Should show the plugin name
+      expect(screen.getByText("city-weather")).toBeInTheDocument();
+      // Should show the source info with path
+      const modal = screen.getByTestId("plugin-launch-modal");
+      expect(modal.textContent).toContain("owner/repo");
+      expect(modal.textContent).toContain("plugins/city-weather");
     });
   });
 

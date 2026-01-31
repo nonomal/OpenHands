@@ -118,7 +118,7 @@
 
   <div class="config">
     <label for="baseUrl">Base URL (your frontend server):</label>
-    <input type="text" id="baseUrl" value="http://localhost:12001" placeholder="http://localhost:12001">
+    <input type="text" id="baseUrl" value="https://ohpr-12699-607.staging.all-hands.dev" placeholder="https://ohpr-12699-607.staging.all-hands.dev">
   </div>
 
   <div class="instructions">
@@ -134,59 +134,64 @@
   <h2>✅ Success Scenarios</h2>
 
   <div class="test-case" id="test1">
-    <h3>Test 1: Single Plugin with Parameters</h3>
-    <p><strong>Plugin:</strong> github:All-Hands-AI/test-plugin</p>
-    <p><strong>Parameters:</strong> apiKey (string), maxRetries (number), debugMode (boolean)</p>
+    <h3>Test 1: City Weather Plugin</h3>
+    <p><strong>Plugin:</strong> github:jpshackelford/openhands-sample-plugins</p>
+    <p><strong>Path:</strong> plugins/city-weather</p>
+    <p><strong>Description:</strong> Get current weather, time, and precipitation forecast for any city worldwide.</p>
     <div class="expected">
-      <strong>Expected:</strong> Modal shows with expandable plugin section. Form fields for each parameter type. Clicking "Start Conversation" creates conversation and redirects.
+      <strong>Expected:</strong> Modal shows city-weather plugin. Clicking "Start Conversation" creates conversation with the plugin loaded.
     </div>
     <button onclick="runTest1()">Launch Test</button>
   </div>
 
   <div class="test-case" id="test2">
-    <h3>Test 2: Multiple Plugins (Mixed Parameters)</h3>
-    <p><strong>Plugins:</strong></p>
-    <ul>
-      <li>github:owner/plugin-with-params (has parameters)</li>
-      <li>github:owner/plugin-no-params (no parameters)</li>
-    </ul>
+    <h3>Test 2: Magic Test Plugin</h3>
+    <p><strong>Plugin:</strong> github:jpshackelford/openhands-sample-plugins</p>
+    <p><strong>Path:</strong> plugins/magic-test</p>
+    <p><strong>Description:</strong> A test plugin for development purposes.</p>
     <div class="expected">
-      <strong>Expected:</strong> Modal shows plugin-with-params in expandable section, plugin-no-params in "Additional Plugins" list.
+      <strong>Expected:</strong> Modal shows magic-test plugin. Clicking "Start Conversation" creates conversation.
     </div>
     <button onclick="runTest2()">Launch Test</button>
   </div>
 
   <div class="test-case" id="test3">
-    <h3>Test 3: Multiple Plugins (No Parameters)</h3>
-    <p><strong>Plugins:</strong> Two plugins with no parameters</p>
+    <h3>Test 3: Multiple Plugins (Both Sample Plugins)</h3>
+    <p><strong>Plugins:</strong></p>
+    <ul>
+      <li>city-weather (plugins/city-weather)</li>
+      <li>magic-test (plugins/magic-test)</li>
+    </ul>
     <div class="expected">
-      <strong>Expected:</strong> Modal shows both plugins in a simple list under "Plugins" heading.
+      <strong>Expected:</strong> Modal shows both plugins in a list under "Plugins" heading.
     </div>
     <button onclick="runTest3()">Launch Test</button>
   </div>
 
   <div class="test-case" id="test4">
-    <h3>Test 4: Single Plugin (No Parameters)</h3>
-    <p><strong>Plugin:</strong> github:owner/simple-plugin</p>
+    <h3>Test 4: Plugin with Specific Branch/Ref</h3>
+    <p><strong>Plugin:</strong> github:jpshackelford/openhands-sample-plugins</p>
+    <p><strong>Path:</strong> plugins/city-weather</p>
+    <p><strong>Ref:</strong> main</p>
     <div class="expected">
-      <strong>Expected:</strong> Modal shows plugin name, no parameter forms, just "Start Conversation" button.
+      <strong>Expected:</strong> Modal shows plugin with the ref "main" displayed.
     </div>
     <button onclick="runTest4()">Launch Test</button>
   </div>
 
   <div class="test-case" id="test5">
     <h3>Test 5: Simple Params Format (Dev/Testing)</h3>
-    <p><strong>URL Params:</strong> plugin_source=github:owner/dev-repo&plugin_ref=v2.0</p>
+    <p><strong>URL Params:</strong> plugin_source, plugin_ref, plugin_repo_path</p>
     <div class="expected">
-      <strong>Expected:</strong> Modal shows plugin from simple URL params (alternative to base64).
+      <strong>Expected:</strong> Modal shows plugin from simple URL params (alternative to base64). Useful for manual testing.
     </div>
     <button onclick="runTest5()">Launch Test</button>
   </div>
 
   <div class="test-case" id="test6">
     <h3>Test 6: With Display Message</h3>
-    <p><strong>Plugin:</strong> github:owner/repo</p>
-    <p><strong>Message:</strong> "Welcome! This plugin helps you automate deployments."</p>
+    <p><strong>Plugin:</strong> github:jpshackelford/openhands-sample-plugins (city-weather)</p>
+    <p><strong>Message:</strong> "Get real-time weather data for any city! Try: /city-weather:now Tokyo"</p>
     <div class="expected">
       <strong>Expected:</strong> Modal shows the custom message below the title.
     </div>
@@ -237,58 +242,61 @@
       window.open(url, '_blank');
     }
 
-    // Test 1: Single plugin with parameters
+    // Test 1: City Weather Plugin
     function runTest1() {
       const plugins = [{
-        source: "github:All-Hands-AI/test-plugin",
-        ref: "main",
-        parameters: {
-          apiKey: "your-api-key-here",
-          maxRetries: 3,
-          debugMode: false
-        }
+        source: "github:jpshackelford/openhands-sample-plugins",
+        repo_path: "plugins/city-weather"
       }];
       openLaunchUrl(`?plugins=${encodePlugins(plugins)}`);
     }
 
-    // Test 2: Multiple plugins (mixed)
+    // Test 2: Magic Test Plugin
     function runTest2() {
+      const plugins = [{
+        source: "github:jpshackelford/openhands-sample-plugins",
+        repo_path: "plugins/magic-test"
+      }];
+      openLaunchUrl(`?plugins=${encodePlugins(plugins)}`);
+    }
+
+    // Test 3: Multiple plugins (both sample plugins)
+    function runTest3() {
       const plugins = [
         {
-          source: "github:owner/plugin-with-params",
-          parameters: { configOption: "enabled", timeout: 30 }
+          source: "github:jpshackelford/openhands-sample-plugins",
+          repo_path: "plugins/city-weather"
         },
         {
-          source: "github:owner/plugin-no-params"
+          source: "github:jpshackelford/openhands-sample-plugins",
+          repo_path: "plugins/magic-test"
         }
       ];
       openLaunchUrl(`?plugins=${encodePlugins(plugins)}`);
     }
 
-    // Test 3: Multiple plugins (no params)
-    function runTest3() {
-      const plugins = [
-        { source: "github:org/utility-plugin" },
-        { source: "github:org/helper-plugin", ref: "v1.2.3" }
-      ];
-      openLaunchUrl(`?plugins=${encodePlugins(plugins)}`);
-    }
-
-    // Test 4: Single plugin (no params)
+    // Test 4: Plugin with specific ref
     function runTest4() {
-      const plugins = [{ source: "github:owner/simple-plugin" }];
+      const plugins = [{
+        source: "github:jpshackelford/openhands-sample-plugins",
+        ref: "main",
+        repo_path: "plugins/city-weather"
+      }];
       openLaunchUrl(`?plugins=${encodePlugins(plugins)}`);
     }
 
     // Test 5: Simple params format
     function runTest5() {
-      openLaunchUrl('?plugin_source=github:owner/dev-repo&plugin_ref=v2.0');
+      openLaunchUrl('?plugin_source=github:jpshackelford/openhands-sample-plugins&plugin_ref=main&plugin_repo_path=plugins/city-weather');
     }
 
     // Test 6: With message
     function runTest6() {
-      const plugins = [{ source: "github:owner/deploy-plugin" }];
-      const message = "Welcome! This plugin helps you automate deployments.";
+      const plugins = [{
+        source: "github:jpshackelford/openhands-sample-plugins",
+        repo_path: "plugins/city-weather"
+      }];
+      const message = "Get real-time weather data for any city! Try: /city-weather:now Tokyo";
       openLaunchUrl(`?plugins=${encodePlugins(plugins)}&message=${encodeURIComponent(message)}`);
     }
 
@@ -304,8 +312,8 @@
 
     // Test 9: XSS prevention
     function runTest9() {
-      const plugins = [{ source: "github:owner/safe-plugin" }];
-      const maliciousMessage = '<script>alert("xss")</script>This text should appear safely';
+      const plugins = [{ source: "github:jpshackelford/openhands-sample-plugins", repo_path: "plugins/city-weather" }];
+      const maliciousMessage = '<scr' + 'ipt>alert("xss")<\/scr' + 'ipt>This text should appear safely';
       openLaunchUrl(`?plugins=${encodePlugins(plugins)}&message=${encodeURIComponent(maliciousMessage)}`);
     }
   </script>
