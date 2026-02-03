@@ -24,7 +24,6 @@ export const clientLoader = async ({ request }: Route.ClientLoaderArgs) => {
   const url = new URL(request.url);
   const { pathname } = url;
   const user = await getActiveOrganizationUser();
-  const userRole = user?.role || "member";
 
   let config = queryClient.getQueryData<GetConfigResponse>(["config"]);
   if (!config) {
@@ -44,10 +43,11 @@ export const clientLoader = async ({ request }: Route.ClientLoaderArgs) => {
     return isSaas ? redirect("/settings/user") : redirect("/settings/mcp");
   }
 
-  // If billing is hidden or user lacks permission to view billing
+  // If no user, billing hidden, or user lacks permission to view billing
   if (
-    (config?.FEATURE_FLAGS?.HIDE_BILLING ||
-      !rolePermissions[userRole].includes("view_billing")) &&
+    (!user ||
+      config?.FEATURE_FLAGS?.HIDE_BILLING ||
+      !rolePermissions[user.role ?? "member"].includes("view_billing")) &&
     pathname === "/settings/billing"
   ) {
     // Redirect to the first available settings page

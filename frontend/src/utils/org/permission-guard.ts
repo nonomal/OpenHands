@@ -17,7 +17,12 @@ export const createPermissionGuard =
   ) =>
   async () => {
     const user = await getActiveOrganizationUser();
-    const userRole = user?.role || "member";
+
+    if (!user) {
+      return redirect(redirectPath);
+    }
+
+    const userRole = user.role ?? "member";
 
     if (!rolePermissions[userRole].includes(requiredPermission)) {
       return redirect(redirectPath);

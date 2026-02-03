@@ -28,7 +28,7 @@ function ManageOrganizationMembers() {
   const { mutate: removeMember } = useRemoveMember();
   const [inviteModalOpen, setInviteModalOpen] = React.useState(false);
 
-  const currentUserRole = user?.role || "member";
+  const currentUserRole = user?.role ?? "member";
 
   const { hasPermission } = usePermission(currentUserRole);
   const hasPermissionToInvite = hasPermission("invite_user_to_organization");

@@ -16,7 +16,12 @@ import { GetConfigResponse } from "#/api/option-service/option.types";
 
 export const clientLoader = async () => {
   const user = await getActiveOrganizationUser();
-  const userRole = user?.role || "member";
+
+  if (!user) {
+    return redirect("/settings/user");
+  }
+
+  const userRole = user.role ?? "member";
 
   let config = queryClient.getQueryData<GetConfigResponse>(["config"]);
   if (!config) {

@@ -82,6 +82,19 @@ describe("createPermissionGuard", () => {
       // Assert: should redirect to /settings/user
       expect(redirect).toHaveBeenCalledWith("/settings/user");
     });
+
+    it("should redirect when user is undefined even for member-level permissions", async () => {
+      // Arrange: no user — manage_secrets is a member-level permission,
+      // but undefined user should NOT get member access
+      vi.mocked(getActiveOrganizationUser).mockResolvedValue(undefined);
+
+      // Act
+      const guard = createPermissionGuard("manage_secrets");
+      await guard();
+
+      // Assert: should redirect, not silently grant member-level access
+      expect(redirect).toHaveBeenCalledWith("/settings/user");
+    });
   });
 
   describe("custom redirect path", () => {

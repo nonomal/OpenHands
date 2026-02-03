@@ -196,6 +196,39 @@ describe("Billing Route", () => {
       });
     });
 
+    it("should redirect when user is undefined (no org selected)", async () => {
+      // Arrange: no org selected, so getActiveOrganizationUser returns undefined
+      setupSaasMode();
+      // Explicitly clear org store so getActiveOrganizationUser returns undefined
+      orgStore.useSelectedOrganizationStore.setState({ organizationId: null });
+
+      const RouterStub = createRoutesStub([
+        {
+          Component: BillingSettingsScreen,
+          loader: clientLoader,
+          path: "/settings/billing",
+        },
+        {
+          Component: () => <div data-testid="user-settings-screen" />,
+          path: "/settings/user",
+        },
+      ]);
+
+      // Act
+      render(<RouterStub initialEntries={["/settings/billing"]} />, {
+        wrapper: ({ children }) => (
+          <QueryClientProvider client={mockQueryClient}>
+            {children}
+          </QueryClientProvider>
+        ),
+      });
+
+      // Assert - should be redirected to user settings
+      await waitFor(() => {
+        expect(screen.getByTestId("user-settings-screen")).toBeInTheDocument();
+      });
+    });
+
     it("should redirect all users when HIDE_BILLING is true", async () => {
       // Arrange
       setupSaasMode({ HIDE_BILLING: true });
