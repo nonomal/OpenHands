@@ -8,10 +8,7 @@ import CloseIcon from "#/icons/close.svg?react";
 import { SettingsDropdownInput } from "./settings-dropdown-input";
 import { useSelectedOrganizationId } from "#/context/use-selected-organization";
 import { useOrganizations } from "#/hooks/query/use-organizations";
-import { useMe } from "#/hooks/query/use-me";
-import { usePermission } from "#/hooks/organizations/use-permissions";
 import { SettingsNavItem } from "#/constants/settings-nav";
-import { OrganizationUserRole } from "#/types/org";
 
 interface SettingsNavigationProps {
   isMobileMenuOpen: boolean;
@@ -26,12 +23,8 @@ export function SettingsNavigation({
 }: SettingsNavigationProps) {
   const { organizationId, setOrganizationId } = useSelectedOrganizationId();
   const { data: organizations } = useOrganizations();
-  const { data: me } = useMe();
 
   const { t } = useTranslation();
-
-  const userRole: OrganizationUserRole = me?.role ?? "member";
-  const { hasPermission } = usePermission(userRole);
 
   return (
     <>
@@ -93,48 +86,27 @@ export function SettingsNavigation({
         </div>
 
         <div className="flex flex-col gap-2">
-          {navigationItems
-            .filter((navItem) => {
-              // Hide org settings if user lacks view_billing permission or no org is selected
-              if (
-                navItem.to === "/settings/org" &&
-                (!hasPermission("view_billing") || !organizationId)
-              ) {
-                return false;
+          {navigationItems.map(({ to, icon, text }) => (
+            <NavLink
+              end
+              key={to}
+              to={to}
+              onClick={onCloseMobileMenu}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-3 p-1 sm:px-[14px] sm:py-2 rounded-md transition-colors",
+                  isActive ? "bg-[#454545]" : "hover:bg-[#454545]",
+                )
               }
-
-              // Hide org members if user lacks invite_user_to_organization permission or no org is selected
-              if (
-                navItem.to === "/settings/org-members" &&
-                (!hasPermission("invite_user_to_organization") ||
-                  !organizationId)
-              ) {
-                return false;
-              }
-
-              return true;
-            })
-            .map(({ to, icon, text }) => (
-              <NavLink
-                end
-                key={to}
-                to={to}
-                onClick={onCloseMobileMenu}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-3 p-1 sm:px-[14px] sm:py-2 rounded-md transition-colors",
-                    isActive ? "bg-[#454545]" : "hover:bg-[#454545]",
-                  )
-                }
-              >
-                {icon}
-                <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                  <Typography.Text className="text-[#A3A3A3] whitespace-nowrap">
-                    {t(text as I18nKey)}
-                  </Typography.Text>
-                </div>
-              </NavLink>
-            ))}
+            >
+              {icon}
+              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                <Typography.Text className="text-[#A3A3A3] whitespace-nowrap">
+                  {t(text as I18nKey)}
+                </Typography.Text>
+              </div>
+            </NavLink>
+          ))}
         </div>
       </nav>
     </>

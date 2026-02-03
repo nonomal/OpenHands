@@ -6,6 +6,7 @@ import {
 } from "#/constants/settings-nav";
 import { OrganizationUserRole } from "#/types/org";
 import { isBillingHidden } from "#/utils/org/billing-visibility";
+import { useSelectedOrganizationStore } from "#/stores/selected-organization-store";
 import { useMe } from "./query/use-me";
 import { usePermission } from "./organizations/use-permissions";
 
@@ -22,6 +23,8 @@ export function useSettingsNavItems(): SettingsNavItem[] {
   const userRole: OrganizationUserRole = user?.role ?? "member";
   const { hasPermission } = usePermission(userRole);
 
+  const { organizationId } = useSelectedOrganizationStore();
+
   const shouldHideLlmSettings = !!config?.FEATURE_FLAGS?.HIDE_LLM_SETTINGS;
   const shouldHideBilling = isBillingHidden(
     config,
@@ -37,6 +40,14 @@ export function useSettingsNavItems(): SettingsNavItem[] {
 
   if (shouldHideBilling) {
     items = items.filter((item) => item.to !== "/settings/billing");
+  }
+
+  if (!hasPermission("view_billing") || !organizationId) {
+    items = items.filter((item) => item.to !== "/settings/org");
+  }
+
+  if (!hasPermission("invite_user_to_organization") || !organizationId) {
+    items = items.filter((item) => item.to !== "/settings/org-members");
   }
 
   return items;

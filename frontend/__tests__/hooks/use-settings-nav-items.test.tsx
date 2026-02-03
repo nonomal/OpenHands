@@ -62,7 +62,10 @@ describe("useSettingsNavItems", () => {
     await waitFor(() => {
       expect(result.current).toEqual(
         SAAS_NAV_ITEMS.filter(
-          item => item.to !== "/settings/billing"
+          (item) =>
+            item.to !== "/settings/billing" &&
+            item.to !== "/settings/org" &&
+            item.to !== "/settings/org-members",
         ),
       );
     });
@@ -98,5 +101,51 @@ describe("useSettingsNavItems", () => {
         result.current.find((item) => item.to === "/settings"),
       ).toBeUndefined();
     });
+  });
+
+  it("should filter out org nav items for members who lack org permissions", async () => {
+    mockConfig("saas");
+    seedActiveUser({ role: "member" });
+    const { result } = renderHook(() => useSettingsNavItems(), { wrapper });
+
+    // Wait for SAAS items to load (billing is filtered for members, so check another SAAS-only item)
+    await waitFor(() => {
+      expect(
+        result.current.find((item) => item.to === "/settings/api-keys"),
+      ).toBeDefined();
+    });
+
+    // Now verify org items are filtered out
+    expect(
+      result.current.find((item) => item.to === "/settings/org"),
+    ).toBeUndefined();
+    expect(
+      result.current.find((item) => item.to === "/settings/org-members"),
+    ).toBeUndefined();
+  });
+
+  it("should filter out org nav items when no organization is selected", async () => {
+    mockConfig("saas");
+    // Set up an admin user but with no org selected
+    useSelectedOrganizationStore.setState({ organizationId: null });
+    vi.spyOn(organizationService, "getMe").mockResolvedValue(
+      createMockUser({ role: "admin" }),
+    );
+    const { result } = renderHook(() => useSettingsNavItems(), { wrapper });
+
+    // Wait for SAAS items to load (api-keys is always present in SAAS mode regardless of role)
+    await waitFor(() => {
+      expect(
+        result.current.find((item) => item.to === "/settings/api-keys"),
+      ).toBeDefined();
+    });
+
+    // Now verify org items are filtered out despite admin having permissions
+    expect(
+      result.current.find((item) => item.to === "/settings/org"),
+    ).toBeUndefined();
+    expect(
+      result.current.find((item) => item.to === "/settings/org-members"),
+    ).toBeUndefined();
   });
 });
