@@ -64,7 +64,7 @@ describe("usePermission", () => {
 
       it("can change member or admin roles", () => {
         expect(run("admin", "u2", "member")).toBe(
-          rolePermissions.admin.includes("change_user_role:admin")
+          rolePermissions.admin.includes("change_user_role:member")
         );
         expect(run("admin", "u2", "admin")).toBe(
           rolePermissions.admin.includes("change_user_role:admin")
@@ -83,7 +83,7 @@ describe("usePermission", () => {
         );
 
         expect(run("owner", "u2", "owner")).toBe(
-          rolePermissions.owner.includes("change_user_role:member"),
+          rolePermissions.owner.includes("change_user_role:owner"),
         );
       });
     });

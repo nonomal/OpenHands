@@ -208,12 +208,12 @@ describe("Settings Billing", () => {
       isLoading: false,
     });
 
-    mockUsePermission.mockReturnValue(true);
+    mockUsePermission.mockReturnValue(false);
 
     renderSettingsScreen();
 
     const navbar = await screen.findByTestId("settings-navbar");
-    within(navbar).getByText("Billing");
+    expect(within(navbar).queryByText("Billing")).not.toBeInTheDocument();
   });
 
   it("should render the billing settings if clicking the billing item", async () => {
