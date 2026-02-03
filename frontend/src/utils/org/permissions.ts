@@ -44,44 +44,23 @@ const memberPerms: PermissionKey[] = [
   "view_llm_settings",
 ];
 
-const adminPerms: PermissionKey[] = [
-  // member perms
-  "manage_secrets",
-  "manage_mcp",
-  "manage_integrations",
-  "manage_application_settings",
-  "manage_api_keys",
-  "view_llm_settings",
-
-  // admin-only
-  "edit_llm_settings",
-  "view_billing",
-  "add_credits",
-  "invite_user_to_organization",
-  `change_user_role:member`,
-  "change_user_role:admin",
-];
-
-const ownerPerms: PermissionKey[] = [
-  // admin perms
-  "manage_secrets",
-  "manage_mcp",
-  "manage_integrations",
-  "manage_application_settings",
-  "manage_api_keys",
-  "view_llm_settings",
+const adminOnly: PermissionKey[] = [
   "edit_llm_settings",
   "view_billing",
   "add_credits",
   "invite_user_to_organization",
   "change_user_role:member",
   "change_user_role:admin",
+];
 
-  // owner-only
+const ownerOnly: PermissionKey[] = [
   "change_organization_name",
   "delete_organization",
   "change_user_role:owner",
 ];
+
+const adminPerms: PermissionKey[] = [...memberPerms, ...adminOnly];
+const ownerPerms: PermissionKey[] = [...adminPerms, ...ownerOnly];
 
 export const rolePermissions: Record<OrganizationUserRole, PermissionKey[]> = {
   owner: ownerPerms,
