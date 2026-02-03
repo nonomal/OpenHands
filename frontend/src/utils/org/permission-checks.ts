@@ -17,8 +17,12 @@ export const getActiveOrganizationUser = async (): Promise<
   if (!orgId) return undefined;
   let user = getMeFromQueryClient(orgId);
   if (!user) {
-    user = await organizationService.getMe({ orgId });
-    queryClient.setQueryData(["organizations", orgId, "me"], user);
+    try {
+      user = await organizationService.getMe({ orgId });
+      queryClient.setQueryData(["organizations", orgId, "me"], user);
+    } catch {
+      return undefined;
+    }
   }
   return user;
 };
