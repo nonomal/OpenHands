@@ -2,6 +2,11 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from server.auth.authorization import (
+    require_org_admin,
+    require_org_owner,
+    require_org_user,
+)
 from server.email_validation import get_admin_user_id
 from server.routes.org_models import (
     LiteLLMIntegrationError,
@@ -174,23 +179,26 @@ async def create_org(
 @org_router.get('/{org_id}', response_model=OrgResponse, status_code=status.HTTP_200_OK)
 async def get_org(
     org_id: UUID,
-    user_id: str = Depends(get_user_id),
+    user_id: str = Depends(require_org_user),
 ) -> OrgResponse:
     """Get organization details by ID.
 
     This endpoint allows authenticated users who are members of an organization
     to retrieve its details. Only members of the organization can access this endpoint.
+    Requires user, admin, or owner role.
 
     Args:
         org_id: Organization ID (UUID)
-        user_id: Authenticated user ID (injected by dependency)
+        user_id: Authenticated user ID (injected by dependency, requires org membership)
 
     Returns:
         OrgResponse: The organization details
 
     Raises:
+        HTTPException: 401 if user is not authenticated
+        HTTPException: 403 if user is not a member of the organization
         HTTPException: 422 if org_id is not a valid UUID (handled by FastAPI)
-        HTTPException: 404 if organization not found or user is not a member
+        HTTPException: 404 if organization not found
         HTTPException: 500 if retrieval fails
     """
     logger.info(
@@ -231,23 +239,25 @@ async def get_org(
 @org_router.delete('/{org_id}', status_code=status.HTTP_200_OK)
 async def delete_org(
     org_id: UUID,
-    user_id: str = Depends(get_admin_user_id),
+    user_id: str = Depends(require_org_owner),
 ) -> dict:
     """Delete an organization.
 
     This endpoint allows authenticated organization owners to delete their organization.
     All associated data including organization members, conversations, billing data,
     and external LiteLLM team resources will be permanently removed.
+    Requires owner role.
 
     Args:
         org_id: Organization ID to delete
-        user_id: Authenticated user ID (injected by dependency)
+        user_id: Authenticated user ID (injected by dependency, requires owner role)
 
     Returns:
         dict: Confirmation message with deleted organization details
 
     Raises:
-        HTTPException: 403 if user is not the organization owner
+        HTTPException: 401 if user is not authenticated
+        HTTPException: 403 if user is not an owner of the organization
         HTTPException: 404 if organization not found
         HTTPException: 500 if deletion fails
     """
@@ -327,24 +337,24 @@ async def delete_org(
 async def update_org(
     org_id: UUID,
     update_data: OrgUpdate,
-    user_id: str = Depends(get_user_id),
+    user_id: str = Depends(require_org_admin),
 ) -> OrgResponse:
     """Update an existing organization.
 
-    This endpoint allows authenticated users to update organization settings.
-    LLM-related settings require admin or owner role in the organization.
+    This endpoint allows authenticated admins and owners to update organization settings.
+    Requires admin or owner role in the organization.
 
     Args:
         org_id: Organization ID to update (UUID validated by FastAPI)
         update_data: Organization update data
-        user_id: Authenticated user ID (injected by dependency)
+        user_id: Authenticated user ID (injected by dependency, requires admin role)
 
     Returns:
         OrgResponse: The updated organization details
 
     Raises:
-        HTTPException: 400 if org_id is invalid UUID format (handled by FastAPI)
-        HTTPException: 403 if user lacks permission for LLM settings
+        HTTPException: 401 if user is not authenticated
+        HTTPException: 403 if user is not an admin or owner of the organization
         HTTPException: 404 if organization not found
         HTTPException: 422 if validation errors occur (handled by FastAPI)
         HTTPException: 500 if update fails
