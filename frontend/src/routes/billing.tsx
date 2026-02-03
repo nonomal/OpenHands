@@ -10,6 +10,7 @@ import { I18nKey } from "#/i18n/declaration";
 import { useTracking } from "#/hooks/use-tracking";
 import { getActiveOrganizationUser } from "#/utils/org/permission-checks";
 import { rolePermissions } from "#/utils/org/permissions";
+import { isBillingHidden } from "#/utils/org/billing-visibility";
 import { queryClient } from "#/query-client-config";
 import OptionService from "#/api/option-service/option-service.api";
 import { GetConfigResponse } from "#/api/option-service/option.types";
@@ -29,10 +30,8 @@ export const clientLoader = async () => {
     queryClient.setQueryData<GetConfigResponse>(["config"], config);
   }
 
-  // Redirect if billing is hidden or user lacks view_billing permission
   if (
-    config?.FEATURE_FLAGS?.HIDE_BILLING ||
-    !rolePermissions[userRole].includes("view_billing")
+    isBillingHidden(config, rolePermissions[userRole].includes("view_billing"))
   ) {
     return redirect("/settings/user");
   }

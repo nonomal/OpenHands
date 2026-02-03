@@ -17,6 +17,7 @@ import { CreditsChip } from "#/ui/credits-chip";
 import { InteractiveChip } from "#/ui/interactive-chip";
 import { usePermission } from "#/hooks/organizations/use-permissions";
 import { createPermissionGuard } from "#/utils/org/permission-guard";
+import { isBillingHidden } from "#/utils/org/billing-visibility";
 
 interface ChangeOrgNameModalProps {
   onClose: () => void;
@@ -227,8 +228,10 @@ function ManageOrg() {
   const canChangeOrgName = !!me && hasPermission("change_organization_name");
   const canDeleteOrg = !!me && hasPermission("delete_organization");
   const canAddCredits = !!me && hasPermission("add_credits");
-  const isBillingHidden =
-    config?.FEATURE_FLAGS?.HIDE_BILLING || !hasPermission("view_billing");
+  const shouldHideBilling = isBillingHidden(
+    config,
+    hasPermission("view_billing"),
+  );
 
   return (
     <div
@@ -246,7 +249,7 @@ function ManageOrg() {
         />
       )}
 
-      {!isBillingHidden && (
+      {!shouldHideBilling && (
         <div className="flex flex-col gap-2">
           <span className="text-white text-xs font-semibold ml-1">
             {t(I18nKey.ORG$CREDITS)}
@@ -264,7 +267,7 @@ function ManageOrg() {
         </div>
       )}
 
-      {addCreditsFormVisible && !isBillingHidden && (
+      {addCreditsFormVisible && !shouldHideBilling && (
         <AddCreditsModal onClose={() => setAddCreditsFormVisible(false)} />
       )}
 
@@ -292,7 +295,7 @@ function ManageOrg() {
         </div>
       </div>
 
-      {!isBillingHidden && (
+      {!shouldHideBilling && (
         <div className="flex flex-col gap-2 w-sm">
           <span className="text-white text-xs font-semibold ml-1">
             {t(I18nKey.ORG$BILLING_INFORMATION)}

@@ -5,6 +5,7 @@ import {
   SettingsNavItem,
 } from "#/constants/settings-nav";
 import { OrganizationUserRole } from "#/types/org";
+import { isBillingHidden } from "#/utils/org/billing-visibility";
 import { useMe } from "./query/use-me";
 import { usePermission } from "./organizations/use-permissions";
 
@@ -22,8 +23,10 @@ export function useSettingsNavItems(): SettingsNavItem[] {
   const { hasPermission } = usePermission(userRole);
 
   const shouldHideLlmSettings = !!config?.FEATURE_FLAGS?.HIDE_LLM_SETTINGS;
-  const shouldHideBilling =
-    !!config?.FEATURE_FLAGS?.HIDE_BILLING || !hasPermission("view_billing");
+  const shouldHideBilling = isBillingHidden(
+    config,
+    hasPermission("view_billing"),
+  );
   const isSaasMode = config?.APP_MODE === "saas";
 
   let items = isSaasMode ? SAAS_NAV_ITEMS : OSS_NAV_ITEMS;
