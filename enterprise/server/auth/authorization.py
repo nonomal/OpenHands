@@ -5,13 +5,16 @@ This module provides FastAPI dependencies for checking user roles
 within organizations. It follows the existing pattern established
 by get_user_id and get_admin_user_id dependencies.
 
+Role hierarchy is determined by the rank field in the Role class,
+where lower rank indicates higher position in the hierarchy
+(e.g., rank 1 > rank 2 > rank 3).
+
 Usage:
     from server.auth.authorization import (
         require_org_role,
         require_org_user,
         require_org_admin,
         require_org_owner,
-        OrgRole,
     )
 
     @router.get('/{org_id}/resource')
@@ -31,34 +34,18 @@ Usage:
         ...
 """
 
-from enum import Enum
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from storage.org_member_store import OrgMemberStore
+from storage.role import Role
 from storage.role_store import RoleStore
 
 from openhands.core.logger import openhands_logger as logger
 from openhands.server.user_auth import get_user_id
 
 
-class OrgRole(str, Enum):
-    """Organization roles with hierarchy (owner > admin > user)."""
-
-    OWNER = 'owner'
-    ADMIN = 'admin'
-    USER = 'user'
-
-
-# Role hierarchy - higher rank = more permissions
-ROLE_HIERARCHY: dict[OrgRole, int] = {
-    OrgRole.OWNER: 3,
-    OrgRole.ADMIN: 2,
-    OrgRole.USER: 1,
-}
-
-
-def get_user_org_role(user_id: str, org_id: UUID) -> str | None:
+def get_user_org_role(user_id: str, org_id: UUID) -> Role | None:
     """
     Get the user's role in an organization.
 
@@ -67,7 +54,7 @@ def get_user_org_role(user_id: str, org_id: UUID) -> str | None:
         org_id: Organization ID
 
     Returns:
-        Role name if user is a member, None otherwise
+        Role object if user is a member, None otherwise
     """
     from uuid import UUID as parse_uuid
 
@@ -75,33 +62,27 @@ def get_user_org_role(user_id: str, org_id: UUID) -> str | None:
     if not org_member:
         return None
 
-    role = RoleStore.get_role_by_id(org_member.role_id)
-    return role.name if role else None
+    return RoleStore.get_role_by_id(org_member.role_id)
 
 
-def has_required_role(user_role: str, required_role: OrgRole) -> bool:
+def has_required_role(user_role: Role, required_role: Role) -> bool:
     """
     Check if user's role meets or exceeds the required role.
 
-    Uses role hierarchy where owner > admin > user.
+    Uses role hierarchy based on rank where lower rank = higher position
+    (e.g., rank 1 owner > rank 2 admin > rank 3 user).
 
     Args:
-        user_role: User's actual role name
-        required_role: Minimum required role
+        user_role: User's actual Role object
+        required_role: Minimum required Role object
 
     Returns:
         True if user has sufficient permissions
     """
-    try:
-        user_role_enum = OrgRole(user_role)
-        return ROLE_HIERARCHY.get(user_role_enum, 0) >= ROLE_HIERARCHY.get(
-            required_role, 0
-        )
-    except ValueError:
-        return False
+    return user_role.rank <= required_role.rank
 
 
-def require_org_role(required_role: OrgRole):
+def require_org_role(required_role_name: str):
     """
     Factory function that creates a dependency to require a minimum org role.
 
@@ -111,16 +92,19 @@ def require_org_role(required_role: OrgRole):
     3. Checks if the user has the required role in the organization
     4. Returns the user_id if authorized, raises HTTPException otherwise
 
+    Role hierarchy is based on rank from the Role class, where
+    lower rank = higher position (e.g., rank 1 > rank 2 > rank 3).
+
     Usage:
         @router.get('/{org_id}/resource')
         async def get_resource(
             org_id: UUID,
-            user_id: str = Depends(require_org_role(OrgRole.USER)),
+            user_id: str = Depends(require_org_role('user')),
         ):
             ...
 
     Args:
-        required_role: Minimum required role to access the endpoint
+        required_role_name: Name of the minimum required role to access the endpoint
 
     Returns:
         Dependency function that validates role and returns user_id
@@ -148,19 +132,30 @@ def require_org_role(required_role: OrgRole):
                 detail='User is not a member of this organization',
             )
 
+        required_role = RoleStore.get_role_by_name(required_role_name)
+        if not required_role:
+            logger.error(
+                'Required role not found in database',
+                extra={'required_role': required_role_name},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail='Role configuration error',
+            )
+
         if not has_required_role(user_role, required_role):
             logger.warning(
                 'Insufficient role permissions',
                 extra={
                     'user_id': user_id,
                     'org_id': str(org_id),
-                    'user_role': user_role,
-                    'required_role': required_role.value,
+                    'user_role': user_role.name,
+                    'required_role': required_role_name,
                 },
             )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f'Requires {required_role.value} role or higher',
+                detail=f'Requires {required_role_name} role or higher',
             )
 
         return user_id
@@ -169,6 +164,6 @@ def require_org_role(required_role: OrgRole):
 
 
 # Convenience dependencies for common role checks
-require_org_user = require_org_role(OrgRole.USER)
-require_org_admin = require_org_role(OrgRole.ADMIN)
-require_org_owner = require_org_role(OrgRole.OWNER)
+require_org_user = require_org_role('user')
+require_org_admin = require_org_role('admin')
+require_org_owner = require_org_role('owner')
