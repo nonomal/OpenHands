@@ -1,8 +1,8 @@
 """Tests for LoginEventStore."""
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import UUID, uuid4
+from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
 
 import pytest
 from storage.login_event import LoginEvent
@@ -194,7 +194,9 @@ class TestLoginEventStoreAnnotate:
         mock_session.commit.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_annotate_event_should_return_false_when_not_found(self, mock_session):
+    async def test_annotate_event_should_return_false_when_not_found(
+        self, mock_session
+    ):
         """Test that annotate returns False when event not found."""
         # Arrange
         mock_result = MagicMock()
