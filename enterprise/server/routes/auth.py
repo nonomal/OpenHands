@@ -20,13 +20,14 @@ from server.auth.constants import (
 )
 from server.auth.domain_blocker import domain_blocker
 from server.auth.gitlab_sync import schedule_gitlab_repo_sync
-from server.auth.recaptcha_service import recaptcha_service
+from server.auth.recaptcha_service import AssessmentResult, recaptcha_service
 from server.auth.saas_user_auth import SaasUserAuth
 from server.auth.token_manager import TokenManager
 from server.config import sign_token
 from server.constants import IS_FEATURE_ENV
 from server.routes.event_webhook import _get_session_api_key, _get_user_id
-from storage.database import session_maker
+from storage.database import a_session_maker, session_maker
+from storage.login_event_store import LoginEventStore
 from storage.user import User
 from storage.user_store import UserStore
 
@@ -122,6 +123,40 @@ def _extract_recaptcha_state(state: str | None) -> tuple[str, str | None]:
         return state, None
 
 
+async def _store_login_event(
+    user_id: str,
+    result: AssessmentResult | None,
+    user_ip: str | None,
+    user_agent: str | None,
+) -> None:
+    """Store a login event with reCAPTCHA assessment data.
+
+    Args:
+        user_id: The user's UUID as a string.
+        result: The reCAPTCHA assessment result, or None if not available.
+        user_ip: The user's IP address.
+        user_agent: The user's browser user agent.
+    """
+    try:
+        async with a_session_maker() as session:
+            await LoginEventStore.create_login_event(
+                session=session,
+                user_id=uuid.UUID(user_id),
+                recaptcha_assessment_name=result.name if result else None,
+                recaptcha_score=result.score if result else None,
+                recaptcha_valid=result.valid if result else None,
+                recaptcha_allowed=result.allowed if result else None,
+                user_ip=user_ip,
+                user_agent=user_agent,
+            )
+    except Exception as e:
+        # Don't fail the login if we can't store the event
+        logger.warning(
+            'failed_to_store_login_event',
+            extra={'user_id': user_id, 'error': str(e)},
+        )
+
+
 @oauth_router.get('/keycloak/callback')
 async def keycloak_callback(
     request: Request,
@@ -192,6 +227,15 @@ async def keycloak_callback(
     logger.info(f'Logging in user {str(user.id)} in org {user.current_org_id}')
 
     # reCAPTCHA verification with Account Defender
+    recaptcha_result: AssessmentResult | None = None
+    user_ip = request.client.host if request.client else 'unknown'
+    user_agent = request.headers.get('User-Agent', '')
+
+    # Handle X-Forwarded-For for proxied requests
+    forwarded_for = request.headers.get('X-Forwarded-For')
+    if forwarded_for:
+        user_ip = forwarded_for.split(',')[0].strip()
+
     if RECAPTCHA_SITE_KEY:
         if not recaptcha_token:
             logger.warning(
@@ -204,16 +248,8 @@ async def keycloak_callback(
             error_url = f'{request.base_url}login?recaptcha_blocked=true'
             return RedirectResponse(error_url, status_code=302)
 
-        user_ip = request.client.host if request.client else 'unknown'
-        user_agent = request.headers.get('User-Agent', '')
-
-        # Handle X-Forwarded-For for proxied requests
-        forwarded_for = request.headers.get('X-Forwarded-For')
-        if forwarded_for:
-            user_ip = forwarded_for.split(',')[0].strip()
-
         try:
-            result = recaptcha_service.create_assessment(
+            recaptcha_result = recaptcha_service.create_assessment(
                 token=recaptcha_token,
                 action='LOGIN',
                 user_ip=user_ip,
@@ -221,12 +257,20 @@ async def keycloak_callback(
                 email=email,
             )
 
-            if not result.allowed:
+            # Store login event with assessment data
+            await _store_login_event(
+                user_id=user_id,
+                result=recaptcha_result,
+                user_ip=user_ip,
+                user_agent=user_agent,
+            )
+
+            if not recaptcha_result.allowed:
                 logger.warning(
                     'recaptcha_blocked_at_callback',
                     extra={
                         'user_ip': user_ip,
-                        'score': result.score,
+                        'score': recaptcha_result.score,
                         'user_id': user_id,
                     },
                 )
@@ -237,6 +281,21 @@ async def keycloak_callback(
         except Exception as e:
             logger.exception(f'reCAPTCHA verification error at callback: {e}')
             # Fail open - continue with login if reCAPTCHA service unavailable
+            # Still store login event without assessment data
+            await _store_login_event(
+                user_id=user_id,
+                result=None,
+                user_ip=user_ip,
+                user_agent=user_agent,
+            )
+    else:
+        # No reCAPTCHA configured, still store login event for tracking
+        await _store_login_event(
+            user_id=user_id,
+            result=None,
+            user_ip=user_ip,
+            user_agent=user_agent,
+        )
 
     # Check if email domain is blocked
     if email and domain_blocker.is_domain_blocked(email):
