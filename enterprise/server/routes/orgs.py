@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from server.email_validation import get_admin_user_id
 from server.routes.org_models import (
     LiteLLMIntegrationError,
+    MemberResponse,
     OrgAuthorizationError,
     OrgCreate,
     OrgDatabaseError,
@@ -14,7 +15,10 @@ from server.routes.org_models import (
     OrgResponse,
     OrgUpdate,
 )
+from storage.org_member_store import OrgMemberStore
 from storage.org_service import OrgService
+from storage.role_store import RoleStore
+from storage.user_store import UserStore
 
 from openhands.core.logger import openhands_logger as logger
 from openhands.server.user_auth import get_user_id
@@ -220,6 +224,78 @@ async def get_org(
     except Exception as e:
         logger.exception(
             'Unexpected error retrieving organization',
+            extra={'user_id': user_id, 'org_id': str(org_id), 'error': str(e)},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail='An unexpected error occurred',
+        )
+
+
+@org_router.get('/{org_id}/me', response_model=MemberResponse)
+async def get_current_member(
+    org_id: UUID,
+    user_id: str = Depends(get_user_id),
+) -> MemberResponse:
+    """Get the current user's membership record for an organization.
+
+    Returns the authenticated user's role, status, email, and LLM override
+    fields (with masked API keys) within the specified organization.
+
+    Args:
+        org_id: Organization ID (UUID)
+        user_id: Authenticated user ID (injected by dependency)
+
+    Returns:
+        MemberResponse: The user's membership data
+
+    Raises:
+        HTTPException: 404 if user is not a member or org doesn't exist
+        HTTPException: 500 if retrieval fails
+    """
+    logger.info(
+        'Retrieving current member details',
+        extra={'user_id': user_id, 'org_id': str(org_id)},
+    )
+
+    try:
+        user_uuid = UUID(user_id)
+
+        # Look up the user's membership in this org
+        org_member = OrgMemberStore.get_org_member(org_id, user_uuid)
+        if org_member is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'Organization with id "{org_id}" not found',
+            )
+
+        # Resolve role name from role_id
+        role = RoleStore.get_role_by_id(org_member.role_id)
+        if role is None:
+            logger.error(
+                'Role not found for org member',
+                extra={
+                    'user_id': user_id,
+                    'org_id': str(org_id),
+                    'role_id': org_member.role_id,
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail='An unexpected error occurred',
+            )
+
+        # Get user email
+        user = UserStore.get_user_by_id(user_id)
+        email = user.email if user and user.email else ''
+
+        return MemberResponse.from_org_member(org_member, role, email)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(
+            'Unexpected error retrieving member details',
             extra={'user_id': user_id, 'org_id': str(org_id), 'error': str(e)},
         )
         raise HTTPException(

@@ -1,7 +1,10 @@
 from typing import Annotated
 
-from pydantic import BaseModel, EmailStr, Field, StringConstraints
+from pydantic import BaseModel, EmailStr, Field, SecretStr, StringConstraints
+
 from storage.org import Org
+from storage.org_member import OrgMember
+from storage.role import Role
 
 
 class OrgCreationError(Exception):
@@ -39,7 +42,7 @@ class OrgDeletionError(Exception):
 class OrgAuthorizationError(OrgDeletionError):
     """Raised when user is not authorized to delete organization."""
 
-    def __init__(self, message: str = 'Not authorized to delete organization'):
+    def __init__(self, message: str = "Not authorized to delete organization"):
         super().__init__(message)
 
 
@@ -93,7 +96,7 @@ class OrgResponse(BaseModel):
     credits: float | None = None
 
     @classmethod
-    def from_org(cls, org: Org, credits: float | None = None) -> 'OrgResponse':
+    def from_org(cls, org: Org, credits: float | None = None) -> "OrgResponse":
         """Create an OrgResponse from an Org entity.
 
         Args:
@@ -173,3 +176,57 @@ class OrgUpdate(BaseModel):
     confirmation_mode: bool | None = None
     enable_default_condenser: bool | None = None
     condenser_max_size: int | None = Field(default=None, ge=20)
+
+
+class MemberResponse(BaseModel):
+    """Response model for an organization member."""
+
+    org_id: str
+    user_id: str
+    email: str
+    role: str
+    llm_api_key: str
+    max_iterations: int | None = None
+    llm_model: str | None = None
+    llm_api_key_for_byor: str | None = None
+    llm_base_url: str | None = None
+    status: str | None = None
+
+    @staticmethod
+    def _mask_key(secret: SecretStr | None) -> str:
+        """Mask an API key, showing only last 4 characters."""
+        if secret is None:
+            return ""
+        raw = secret.get_secret_value()
+        if not raw:
+            return ""
+        if len(raw) <= 4:
+            return "****"
+        return "****" + raw[-4:]
+
+    @classmethod
+    def from_org_member(
+        cls, member: OrgMember, role: Role, email: str
+    ) -> "MemberResponse":
+        """Create a MemberResponse from an OrgMember, Role, and user email.
+
+        Args:
+            member: The OrgMember entity
+            role: The Role entity (provides role name)
+            email: The user's email address
+
+        Returns:
+            MemberResponse with masked API keys
+        """
+        return cls(
+            org_id=str(member.org_id),
+            user_id=str(member.user_id),
+            email=email,
+            role=role.name,
+            llm_api_key=cls._mask_key(member.llm_api_key),
+            max_iterations=member.max_iterations,
+            llm_model=member.llm_model,
+            llm_api_key_for_byor=cls._mask_key(member.llm_api_key_for_byor) or None,
+            llm_base_url=member.llm_base_url,
+            status=member.status,
+        )
