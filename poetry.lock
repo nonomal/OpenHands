@@ -14724,4 +14724,4 @@ third-party-runtimes = ["daytona", "e2b-code-interpreter", "modal", "runloop-api
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12,<3.14"
-content-hash = "0fa303691e2683f45597f255a9f58e720a8d98812847d59c4eba90189d9cef58"
+content-hash = "bb0062a2657a08ed06be2c0cc2ce4e7590908773e5bb32649044fccc15a781aa"
