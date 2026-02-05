@@ -55,12 +55,12 @@ def get_supported_llm_models(config: OpenHandsConfig) -> list[str]:
 
     # Add OpenHands provider models
     openhands_models = [
+        'openhands/claude-opus-4-6-20260205',
         'openhands/claude-sonnet-4-20250514',
         'openhands/claude-sonnet-4-5-20250929',
+        'openhands/claude-opus-4-5-20251101',
         'openhands/gpt-5-2025-08-07',
         'openhands/gpt-5-mini-2025-08-07',
-        'openhands/claude-opus-4-20250514',
-        'openhands/claude-opus-4-5-20251101',
         'openhands/gemini-2.5-pro',
         'openhands/o3',
         'openhands/o4-mini',
