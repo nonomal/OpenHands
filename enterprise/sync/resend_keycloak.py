@@ -32,7 +32,6 @@ from typing import Any, Dict, List, Optional
 import resend
 from keycloak.exceptions import KeycloakError
 from ratelimit import limits, sleep_and_retry
-from resend.exceptions import ResendError
 from server.auth.token_manager import get_keycloak_admin
 from tenacity import (
     retry,
@@ -255,7 +254,7 @@ def send_welcome_email(
         The API response.
 
     Raises:
-        ResendError: If the API call fails.
+        resend.exceptions.ResendError: If the API call fails.
     """
     try:
         # Prepare the recipient name
