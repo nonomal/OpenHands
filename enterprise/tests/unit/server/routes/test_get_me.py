@@ -10,7 +10,7 @@ all role-based access control on settings pages is broken (returns 404).
 """
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI, HTTPException, status
@@ -19,16 +19,15 @@ from pydantic import SecretStr
 
 # Mock database before imports
 with (
-    patch("storage.database.engine", create=True),
-    patch("storage.database.a_engine", create=True),
+    patch('storage.database.engine', create=True),
+    patch('storage.database.a_engine', create=True),
 ):
-    from openhands.server.user_auth import get_user_id
-
-    from server.routes.org_models import MemberResponse
     from server.routes.orgs import org_router
     from storage.org_member import OrgMember
     from storage.role import Role
     from storage.user import User
+
+    from openhands.server.user_auth import get_user_id
 
 
 TEST_USER_ID = str(uuid.uuid4())
@@ -52,11 +51,11 @@ def _make_org_member(
     org_id=None,
     user_id=None,
     role_id=1,
-    llm_api_key="sk-test-key-12345",
-    llm_model="gpt-4",
-    llm_base_url="https://api.example.com",
+    llm_api_key='sk-test-key-12345',
+    llm_model='gpt-4',
+    llm_base_url='https://api.example.com',
     max_iterations=50,
-    status_val="active",
+    status_val='active',
 ):
     """Create a mock OrgMember with controlled field values."""
     member = MagicMock(spec=OrgMember)
@@ -72,7 +71,7 @@ def _make_org_member(
     return member
 
 
-def _make_role(role_id=1, name="owner"):
+def _make_role(role_id=1, name='owner'):
     """Create a mock Role."""
     role = MagicMock(spec=Role)
     role.id = role_id
@@ -80,7 +79,7 @@ def _make_role(role_id=1, name="owner"):
     return role
 
 
-def _make_user(user_id=None, email="test@example.com"):
+def _make_user(user_id=None, email='test@example.com'):
     """Create a mock User."""
     user = MagicMock(spec=User)
     user.id = uuid.UUID(user_id or TEST_USER_ID)
@@ -95,36 +94,36 @@ async def test_get_me_success(mock_app):
     THEN: Returns 200 with the user's membership data including role name and email
     """
     org_member = _make_org_member()
-    role = _make_role(role_id=1, name="owner")
-    user = _make_user(email="owner@example.com")
+    role = _make_role(role_id=1, name='owner')
+    user = _make_user(email='owner@example.com')
 
     with (
         patch(
-            "server.routes.orgs.OrgMemberStore.get_org_member",
+            'server.routes.orgs.OrgMemberStore.get_org_member',
             return_value=org_member,
         ),
         patch(
-            "server.routes.orgs.RoleStore.get_role_by_id",
+            'server.routes.orgs.RoleStore.get_role_by_id',
             return_value=role,
         ),
         patch(
-            "server.routes.orgs.UserStore.get_user_by_id",
+            'server.routes.orgs.UserStore.get_user_by_id',
             return_value=user,
         ),
     ):
         client = TestClient(mock_app)
-        response = client.get(f"/api/organizations/{TEST_ORG_ID}/me")
+        response = client.get(f'/api/organizations/{TEST_ORG_ID}/me')
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
-    assert data["org_id"] == str(TEST_ORG_ID)
-    assert data["user_id"] == TEST_USER_ID
-    assert data["email"] == "owner@example.com"
-    assert data["role"] == "owner"
-    assert data["llm_model"] == "gpt-4"
-    assert data["llm_base_url"] == "https://api.example.com"
-    assert data["max_iterations"] == 50
-    assert data["status"] == "active"
+    assert data['org_id'] == str(TEST_ORG_ID)
+    assert data['user_id'] == TEST_USER_ID
+    assert data['email'] == 'owner@example.com'
+    assert data['role'] == 'owner'
+    assert data['llm_model'] == 'gpt-4'
+    assert data['llm_base_url'] == 'https://api.example.com'
+    assert data['max_iterations'] == 50
+    assert data['status'] == 'active'
 
 
 @pytest.mark.asyncio
@@ -136,33 +135,33 @@ async def test_get_me_masks_llm_api_key(mock_app):
     Why: API keys must never be returned in plaintext in API responses.
     The frontend only needs to know if a key is set, not its value.
     """
-    org_member = _make_org_member(llm_api_key="sk-secret-real-key-abcdef")
-    role = _make_role(name="member")
+    org_member = _make_org_member(llm_api_key='sk-secret-real-key-abcdef')
+    role = _make_role(name='member')
     user = _make_user()
 
     with (
         patch(
-            "server.routes.orgs.OrgMemberStore.get_org_member",
+            'server.routes.orgs.OrgMemberStore.get_org_member',
             return_value=org_member,
         ),
         patch(
-            "server.routes.orgs.RoleStore.get_role_by_id",
+            'server.routes.orgs.RoleStore.get_role_by_id',
             return_value=role,
         ),
         patch(
-            "server.routes.orgs.UserStore.get_user_by_id",
+            'server.routes.orgs.UserStore.get_user_by_id',
             return_value=user,
         ),
     ):
         client = TestClient(mock_app)
-        response = client.get(f"/api/organizations/{TEST_ORG_ID}/me")
+        response = client.get(f'/api/organizations/{TEST_ORG_ID}/me')
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     # The raw key must NOT appear in the response
-    assert data["llm_api_key"] != "sk-secret-real-key-abcdef"
+    assert data['llm_api_key'] != 'sk-secret-real-key-abcdef'
     # Should be masked with stars
-    assert "**" in data["llm_api_key"]
+    assert '**' in data['llm_api_key']
 
 
 @pytest.mark.asyncio
@@ -172,11 +171,11 @@ async def test_get_me_not_a_member(mock_app):
     THEN: Returns 404 (to avoid leaking org existence per spec)
     """
     with patch(
-        "server.routes.orgs.OrgMemberStore.get_org_member",
+        'server.routes.orgs.OrgMemberStore.get_org_member',
         return_value=None,
     ):
         client = TestClient(mock_app)
-        response = client.get(f"/api/organizations/{TEST_ORG_ID}/me")
+        response = client.get(f'/api/organizations/{TEST_ORG_ID}/me')
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
@@ -188,7 +187,7 @@ async def test_get_me_invalid_uuid(mock_app):
     THEN: Returns 422 (FastAPI validates UUID path parameter)
     """
     client = TestClient(mock_app)
-    response = client.get("/api/organizations/not-a-valid-uuid/me")
+    response = client.get('/api/organizations/not-a-valid-uuid/me')
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
@@ -203,12 +202,12 @@ async def test_get_me_unauthenticated():
     app.include_router(org_router)
 
     async def mock_unauthenticated():
-        raise HTTPException(status_code=401, detail="User not authenticated")
+        raise HTTPException(status_code=401, detail='User not authenticated')
 
     app.dependency_overrides[get_user_id] = mock_unauthenticated
 
     client = TestClient(app)
-    response = client.get(f"/api/organizations/{TEST_ORG_ID}/me")
+    response = client.get(f'/api/organizations/{TEST_ORG_ID}/me')
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -220,11 +219,11 @@ async def test_get_me_unexpected_error(mock_app):
     THEN: Returns 500
     """
     with patch(
-        "server.routes.orgs.OrgMemberStore.get_org_member",
-        side_effect=RuntimeError("Database connection failed"),
+        'server.routes.orgs.OrgMemberStore.get_org_member',
+        side_effect=RuntimeError('Database connection failed'),
     ):
         client = TestClient(mock_app)
-        response = client.get(f"/api/organizations/{TEST_ORG_ID}/me")
+        response = client.get(f'/api/organizations/{TEST_ORG_ID}/me')
 
     assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
@@ -239,34 +238,34 @@ async def test_get_me_with_null_optional_fields(mock_app):
         llm_model=None,
         llm_base_url=None,
         max_iterations=None,
-        llm_api_key="",
+        llm_api_key='',
     )
     org_member.llm_api_key_for_byor = None
-    role = _make_role(name="member")
+    role = _make_role(name='member')
     user = _make_user()
 
     with (
         patch(
-            "server.routes.orgs.OrgMemberStore.get_org_member",
+            'server.routes.orgs.OrgMemberStore.get_org_member',
             return_value=org_member,
         ),
         patch(
-            "server.routes.orgs.RoleStore.get_role_by_id",
+            'server.routes.orgs.RoleStore.get_role_by_id',
             return_value=role,
         ),
         patch(
-            "server.routes.orgs.UserStore.get_user_by_id",
+            'server.routes.orgs.UserStore.get_user_by_id',
             return_value=user,
         ),
     ):
         client = TestClient(mock_app)
-        response = client.get(f"/api/organizations/{TEST_ORG_ID}/me")
+        response = client.get(f'/api/organizations/{TEST_ORG_ID}/me')
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
-    assert data["llm_model"] is None
-    assert data["llm_base_url"] is None
-    assert data["max_iterations"] is None
+    assert data['llm_model'] is None
+    assert data['llm_base_url'] is None
+    assert data['max_iterations'] is None
 
 
 @pytest.mark.asyncio
@@ -279,29 +278,29 @@ async def test_get_me_with_admin_role(mock_app):
     Admins and owners can edit; members see read-only.
     """
     org_member = _make_org_member(role_id=2)
-    role = _make_role(role_id=2, name="admin")
+    role = _make_role(role_id=2, name='admin')
     user = _make_user()
 
     with (
         patch(
-            "server.routes.orgs.OrgMemberStore.get_org_member",
+            'server.routes.orgs.OrgMemberStore.get_org_member',
             return_value=org_member,
         ),
         patch(
-            "server.routes.orgs.RoleStore.get_role_by_id",
+            'server.routes.orgs.RoleStore.get_role_by_id',
             return_value=role,
         ),
         patch(
-            "server.routes.orgs.UserStore.get_user_by_id",
+            'server.routes.orgs.UserStore.get_user_by_id',
             return_value=user,
         ),
     ):
         client = TestClient(mock_app)
-        response = client.get(f"/api/organizations/{TEST_ORG_ID}/me")
+        response = client.get(f'/api/organizations/{TEST_ORG_ID}/me')
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
-    assert data["role"] == "admin"
+    assert data['role'] == 'admin'
 
 
 @pytest.mark.asyncio
@@ -311,28 +310,28 @@ async def test_get_me_masks_byor_api_key(mock_app):
     THEN: The llm_api_key_for_byor field is also masked
     """
     org_member = _make_org_member()
-    org_member.llm_api_key_for_byor = SecretStr("sk-byor-secret-key")
-    role = _make_role(name="member")
+    org_member.llm_api_key_for_byor = SecretStr('sk-byor-secret-key')
+    role = _make_role(name='member')
     user = _make_user()
 
     with (
         patch(
-            "server.routes.orgs.OrgMemberStore.get_org_member",
+            'server.routes.orgs.OrgMemberStore.get_org_member',
             return_value=org_member,
         ),
         patch(
-            "server.routes.orgs.RoleStore.get_role_by_id",
+            'server.routes.orgs.RoleStore.get_role_by_id',
             return_value=role,
         ),
         patch(
-            "server.routes.orgs.UserStore.get_user_by_id",
+            'server.routes.orgs.UserStore.get_user_by_id',
             return_value=user,
         ),
     ):
         client = TestClient(mock_app)
-        response = client.get(f"/api/organizations/{TEST_ORG_ID}/me")
+        response = client.get(f'/api/organizations/{TEST_ORG_ID}/me')
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
-    assert data["llm_api_key_for_byor"] != "sk-byor-secret-key"
-    assert data["llm_api_key_for_byor"] is None or "**" in data["llm_api_key_for_byor"]
+    assert data['llm_api_key_for_byor'] != 'sk-byor-secret-key'
+    assert data['llm_api_key_for_byor'] is None or '**' in data['llm_api_key_for_byor']

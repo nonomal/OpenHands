@@ -1,7 +1,6 @@
 from typing import Annotated
 
 from pydantic import BaseModel, EmailStr, Field, SecretStr, StringConstraints
-
 from storage.org import Org
 from storage.org_member import OrgMember
 from storage.role import Role
@@ -42,7 +41,7 @@ class OrgDeletionError(Exception):
 class OrgAuthorizationError(OrgDeletionError):
     """Raised when user is not authorized to delete organization."""
 
-    def __init__(self, message: str = "Not authorized to delete organization"):
+    def __init__(self, message: str = 'Not authorized to delete organization'):
         super().__init__(message)
 
 
@@ -96,7 +95,7 @@ class OrgResponse(BaseModel):
     credits: float | None = None
 
     @classmethod
-    def from_org(cls, org: Org, credits: float | None = None) -> "OrgResponse":
+    def from_org(cls, org: Org, credits: float | None = None) -> 'OrgResponse':
         """Create an OrgResponse from an Org entity.
 
         Args:
@@ -196,18 +195,18 @@ class MemberResponse(BaseModel):
     def _mask_key(secret: SecretStr | None) -> str:
         """Mask an API key, showing only last 4 characters."""
         if secret is None:
-            return ""
+            return ''
         raw = secret.get_secret_value()
         if not raw:
-            return ""
+            return ''
         if len(raw) <= 4:
-            return "****"
-        return "****" + raw[-4:]
+            return '****'
+        return '****' + raw[-4:]
 
     @classmethod
     def from_org_member(
         cls, member: OrgMember, role: Role, email: str
-    ) -> "MemberResponse":
+    ) -> 'MemberResponse':
         """Create a MemberResponse from an OrgMember, Role, and user email.
 
         Args:
