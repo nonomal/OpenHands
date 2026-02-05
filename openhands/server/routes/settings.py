@@ -1,4 +1,4 @@
-# IMPORTANT: LEGACY V0 CODE
+# IMPORTANT: LEGACY V0 CODE - Deprecated since version 1.0.0, scheduled for removal April 1, 2026
 # This file is part of the legacy (V0) implementation of OpenHands and will be removed soon as we complete the migration to V1.
 # OpenHands V1 uses the Software Agent SDK for the agentic core and runs a new application server. Please refer to:
 #   - V1 agentic core (SDK): https://github.com/OpenHands/software-agent-sdk
@@ -114,10 +114,8 @@ async def reset_settings() -> JSONResponse:
 
 
 async def store_llm_settings(
-    settings: Settings, settings_store: SettingsStore
+    settings: Settings, existing_settings: Settings
 ) -> Settings:
-    existing_settings = await settings_store.load()
-
     # Convert to Settings model and merge with existing settings
     if existing_settings:
         # Keep existing LLM settings if not provided
@@ -156,7 +154,7 @@ async def store_settings(
 
         # Convert to Settings model and merge with existing settings
         if existing_settings:
-            settings = await store_llm_settings(settings, settings_store)
+            settings = await store_llm_settings(settings, existing_settings)
 
             # Keep existing analytics consent if not provided
             if settings.user_consents_to_analytics is None:
