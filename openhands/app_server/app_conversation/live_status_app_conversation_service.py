@@ -44,6 +44,9 @@ from openhands.app_server.app_conversation.app_conversation_service_base import 
 from openhands.app_server.app_conversation.app_conversation_start_task_service import (
     AppConversationStartTaskService,
 )
+from openhands.app_server.app_conversation.hook_loader import (
+    load_hooks_from_agent_server,
+)
 from openhands.app_server.app_conversation.sql_app_conversation_info_service import (
     SQLAppConversationInfoService,
 )
@@ -79,6 +82,7 @@ from openhands.app_server.utils.llm_metadata import (
 from openhands.experiments.experiment_manager import ExperimentManagerImpl
 from openhands.integrations.provider import ProviderType
 from openhands.sdk import Agent, AgentContext, LocalWorkspace
+from openhands.sdk.hooks import HookConfig
 from openhands.sdk.llm import LLM
 from openhands.sdk.plugin import PluginSource
 from openhands.sdk.secret import LookupSecret, SecretValue, StaticSecret
@@ -1029,6 +1033,32 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
             run=initial_message.run,
         )
 
+    async def _load_hooks_from_workspace(
+        self,
+        remote_workspace: AsyncRemoteWorkspace,
+        working_dir: str,
+    ) -> HookConfig | None:
+        """Load hooks from .openhands/hooks.json in the remote workspace.
+
+        This enables project-level hooks to be automatically loaded when starting
+        a conversation, similar to how OpenHands-CLI loads hooks from the workspace.
+
+        Uses the agent-server's /api/hooks endpoint, consistent with how skills
+        are loaded via /api/skills.
+
+        Args:
+            remote_workspace: AsyncRemoteWorkspace for accessing the agent server
+            working_dir: Working directory path in the sandbox
+
+        Returns:
+            HookConfig if hooks.json exists and is valid, None otherwise
+        """
+        return await load_hooks_from_agent_server(
+            agent_server_url=remote_workspace.host,
+            session_api_key=remote_workspace._headers.get('X-Session-API-Key'),
+            project_dir=working_dir,
+        )
+
     async def _finalize_conversation_request(
         self,
         agent: Agent,
@@ -1074,6 +1104,7 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
         agent = self._update_agent_with_llm_metadata(agent, conversation_id, user.id)
 
         # Load and merge skills if remote workspace is available
+        hook_config: HookConfig | None = None
         if remote_workspace:
             try:
                 agent = await self._load_skills_and_update_agent(
@@ -1082,6 +1113,15 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
             except Exception as e:
                 _logger.warning(f'Failed to load skills: {e}', exc_info=True)
                 # Continue without skills - don't fail conversation startup
+
+            # Load hooks from workspace (.openhands/hooks.json)
+            try:
+                hook_config = await self._load_hooks_from_workspace(
+                    remote_workspace, working_dir
+                )
+            except Exception as e:
+                _logger.warning(f'Failed to load hooks: {e}', exc_info=True)
+                # Continue without hooks - don't fail conversation startup
 
         # Incorporate plugin parameters into initial message if specified
         final_initial_message = self._construct_initial_message_with_plugin_params(
@@ -1111,6 +1151,7 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
             initial_message=final_initial_message,
             secrets=secrets,
             plugins=sdk_plugins,
+            hook_config=hook_config,
         )
 
     async def _build_start_conversation_request_for_user(

@@ -2638,3 +2638,169 @@ class TestAppConversationStartRequestWithPlugins:
         assert request.plugins[0].source == 'github:owner/plugin1'
         assert request.plugins[1].repo_path == 'plugins/sub'
         assert request.plugins[2].source == '/local/path'
+
+
+class TestLoadHooksFromWorkspace:
+    """Test cases for _load_hooks_from_workspace method."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create mock dependencies
+        self.mock_user_context = Mock(spec=UserContext)
+        self.mock_jwt_service = Mock()
+        self.mock_sandbox_service = Mock()
+        self.mock_sandbox_spec_service = Mock()
+        self.mock_app_conversation_info_service = Mock()
+        self.mock_app_conversation_start_task_service = Mock()
+        self.mock_event_callback_service = Mock()
+        self.mock_event_service = Mock()
+        self.mock_httpx_client = AsyncMock()
+
+        # Create service instance
+        self.service = LiveStatusAppConversationService(
+            init_git_in_empty_workspace=True,
+            user_context=self.mock_user_context,
+            app_conversation_info_service=self.mock_app_conversation_info_service,
+            app_conversation_start_task_service=self.mock_app_conversation_start_task_service,
+            event_callback_service=self.mock_event_callback_service,
+            event_service=self.mock_event_service,
+            sandbox_service=self.mock_sandbox_service,
+            sandbox_spec_service=self.mock_sandbox_spec_service,
+            jwt_service=self.mock_jwt_service,
+            sandbox_startup_timeout=30,
+            sandbox_startup_poll_frequency=1,
+            httpx_client=self.mock_httpx_client,
+            web_url='https://test.example.com',
+            openhands_provider_base_url='https://provider.example.com',
+            access_token_hard_timeout=None,
+            app_mode='test',
+        )
+
+    @pytest.mark.asyncio
+    @patch('openhands.app_server.app_conversation.hook_loader.httpx.AsyncClient')
+    async def test_load_hooks_from_workspace_success(self, mock_async_client):
+        """Test loading hooks from workspace when hooks.json exists."""
+        # Arrange
+        mock_remote_workspace = Mock(spec=AsyncRemoteWorkspace)
+        mock_remote_workspace.host = 'http://agent-server:8000'
+        mock_remote_workspace._headers = {'X-Session-API-Key': 'test-key'}
+
+        hooks_response = {
+            'hook_config': {
+                'stop': [
+                    {
+                        'matcher': '*',
+                        'hooks': [{'type': 'command', 'command': 'echo "stop hook"'}],
+                    }
+                ]
+            }
+        }
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = hooks_response
+        mock_response.raise_for_status = Mock()
+
+        mock_client_instance = AsyncMock()
+        mock_client_instance.post = AsyncMock(return_value=mock_response)
+        mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
+        mock_client_instance.__aexit__ = AsyncMock(return_value=None)
+        mock_async_client.return_value = mock_client_instance
+
+        # Act
+        result = await self.service._load_hooks_from_workspace(
+            mock_remote_workspace, '/workspace'
+        )
+
+        # Assert
+        assert result is not None
+        assert not result.is_empty()
+        mock_client_instance.post.assert_called_once_with(
+            'http://agent-server:8000/api/hooks',
+            json={'project_dir': '/workspace'},
+            headers={
+                'Content-Type': 'application/json',
+                'X-Session-API-Key': 'test-key',
+            },
+            timeout=30.0,
+        )
+
+    @pytest.mark.asyncio
+    @patch('openhands.app_server.app_conversation.hook_loader.httpx.AsyncClient')
+    async def test_load_hooks_from_workspace_file_not_found(self, mock_async_client):
+        """Test loading hooks when hooks.json does not exist."""
+        # Arrange
+        mock_remote_workspace = Mock(spec=AsyncRemoteWorkspace)
+        mock_remote_workspace.host = 'http://agent-server:8000'
+        mock_remote_workspace._headers = {}
+
+        # Agent server returns hook_config: None when file not found
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {'hook_config': None}
+        mock_response.raise_for_status = Mock()
+
+        mock_client_instance = AsyncMock()
+        mock_client_instance.post = AsyncMock(return_value=mock_response)
+        mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
+        mock_client_instance.__aexit__ = AsyncMock(return_value=None)
+        mock_async_client.return_value = mock_client_instance
+
+        # Act
+        result = await self.service._load_hooks_from_workspace(
+            mock_remote_workspace, '/workspace'
+        )
+
+        # Assert
+        assert result is None
+
+    @pytest.mark.asyncio
+    @patch('openhands.app_server.app_conversation.hook_loader.httpx.AsyncClient')
+    async def test_load_hooks_from_workspace_empty_hooks(self, mock_async_client):
+        """Test loading hooks when hooks.json is empty or has no hooks."""
+        # Arrange
+        mock_remote_workspace = Mock(spec=AsyncRemoteWorkspace)
+        mock_remote_workspace.host = 'http://agent-server:8000'
+        mock_remote_workspace._headers = {}
+
+        # Agent server returns empty hook_config
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {'hook_config': {}}
+        mock_response.raise_for_status = Mock()
+
+        mock_client_instance = AsyncMock()
+        mock_client_instance.post = AsyncMock(return_value=mock_response)
+        mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
+        mock_client_instance.__aexit__ = AsyncMock(return_value=None)
+        mock_async_client.return_value = mock_client_instance
+
+        # Act
+        result = await self.service._load_hooks_from_workspace(
+            mock_remote_workspace, '/workspace'
+        )
+
+        # Assert
+        assert result is None
+
+    @pytest.mark.asyncio
+    @patch('openhands.app_server.app_conversation.hook_loader.httpx.AsyncClient')
+    async def test_load_hooks_from_workspace_http_error(self, mock_async_client):
+        """Test loading hooks when HTTP request fails."""
+        # Arrange
+        mock_remote_workspace = Mock(spec=AsyncRemoteWorkspace)
+        mock_remote_workspace.host = 'http://agent-server:8000'
+        mock_remote_workspace._headers = {}
+
+        mock_client_instance = AsyncMock()
+        mock_client_instance.post = AsyncMock(side_effect=Exception('Connection error'))
+        mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
+        mock_client_instance.__aexit__ = AsyncMock(return_value=None)
+        mock_async_client.return_value = mock_client_instance
+
+        # Act
+        result = await self.service._load_hooks_from_workspace(
+            mock_remote_workspace, '/workspace'
+        )
+
+        # Assert
+        assert result is None
