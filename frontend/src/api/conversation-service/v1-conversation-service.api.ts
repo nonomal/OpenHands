@@ -427,8 +427,7 @@ class V1ConversationService {
         PAUSED: "STATUS$READY",
         STOPPED: "STATUS$STOPPED",
       };
-      runtimeStatus =
-        runtimeMap[v1Conv.execution_status] || "STATUS$READY";
+      runtimeStatus = runtimeMap[v1Conv.execution_status] || "STATUS$READY";
     }
 
     return {
@@ -441,7 +440,7 @@ class V1ConversationService {
       created_at: v1Conv.created_at,
       status,
       runtime_status: runtimeStatus,
-      trigger: v1Conv.trigger,
+      trigger: v1Conv.trigger ?? undefined,
       url: v1Conv.conversation_url,
       session_api_key: v1Conv.session_api_key,
       pr_number: v1Conv.pr_number,
