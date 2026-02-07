@@ -31,12 +31,14 @@ from openhands.app_server.sandbox.sandbox_models import (
 from openhands.app_server.sandbox.sandbox_spec_models import SandboxSpecInfo
 from openhands.app_server.user.user_context import UserContext
 from openhands.integrations.provider import ProviderToken, ProviderType
+from openhands.integrations.service_types import SuggestedTask, TaskType
 from openhands.sdk import Agent, Event
 from openhands.sdk.llm import LLM
 from openhands.sdk.secret import LookupSecret, StaticSecret
 from openhands.sdk.workspace import LocalWorkspace
 from openhands.sdk.workspace.remote.async_remote_workspace import AsyncRemoteWorkspace
 from openhands.server.types import AppMode
+from openhands.storage.data_models.conversation_metadata import ConversationTrigger
 
 
 class TestLiveStatusAppConversationService:
@@ -93,6 +95,28 @@ class TestLiveStatusAppConversationService:
         self.mock_sandbox = Mock(spec=SandboxInfo)
         self.mock_sandbox.id = uuid4()
         self.mock_sandbox.status = SandboxStatus.RUNNING
+
+    def test_apply_suggested_task_sets_prompt_and_trigger(self):
+        """Test suggested task prompts populate initial message and trigger."""
+        suggested_task = SuggestedTask(
+            git_provider=ProviderType.GITHUB,
+            task_type=TaskType.UNRESOLVED_COMMENTS,
+            repo='owner/repo',
+            issue_number=42,
+            title='Handle review comments',
+        )
+        request = AppConversationStartRequest(suggested_task=suggested_task)
+
+        self.service._apply_suggested_task(request)
+
+        assert request.initial_message is not None
+        assert (
+            request.initial_message.content[0].text
+            == suggested_task.get_prompt_for_task()
+        )
+        assert request.trigger == ConversationTrigger.SUGGESTED_TASK
+        assert request.selected_repository == suggested_task.repo
+        assert request.git_provider == suggested_task.git_provider
 
     @pytest.mark.asyncio
     async def test_setup_secrets_for_git_providers_no_provider_tokens(self):
